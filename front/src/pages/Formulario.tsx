@@ -16,23 +16,20 @@ interface ISelectedBlock {
 }
 
 export const FormularioEnvio: React.FC = () => {
-  // --- ESTADO DEL PASO 1: SELECCIÓN DE BLOQUE ---
+  
   const [selectedBlock, setSelectedBlock] = useState<ISelectedBlock | null>(null);
   const [existingBlocks, setExistingBlocks] = useState<IBloque[]>([]);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
 
-  // --- ESTADO DEL PASO 2: FORMULARIO DE REPORTE ---
   const [metrologo, setMetrologo] = useState('');
   const [codigoEquipo, setCodigoEquipo] = useState('');
   const [imagenesPreview, setImagenesPreview] = useState<string[]>([]);
   const [imagenes, setImagenes] = useState<FileList | null>(null);
 
-  // Estados generales de UI (carga, error, éxito)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // --- CARGAR BLOQUES EXISTENTES AL INICIAR ---
   useEffect(() => {
     const loadExistingBlocks = async () => {
       try {
