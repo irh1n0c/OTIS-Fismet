@@ -1,86 +1,140 @@
 // frontend/src/pages/FormularioEnvio.tsx
-import React, { useState } from 'react';
-import { subirReporte } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { subirReporte, obtenerReportes } from '../services/api';
+
+// --- INTERFAZ PARA TUS BLOQUES ---
+interface IBloque {
+  _id: string; // ID de MongoDB
+  departamento: string;
+  nombreCliente: string;
+  reportes: any[]; // No necesitamos los detalles, solo la longitud
+}
+
+interface ISelectedBlock {
+  departamento: string;
+  nombreCliente: string;
+}
 
 export const FormularioEnvio: React.FC = () => {
-  // Estados para los campos de texto
-  const [departamento, setDepartamento] = useState('');
-  const [nombreCliente, setNombreCliente] = useState('');
+  // --- ESTADO DEL PASO 1: SELECCIÓN DE BLOQUE ---
+  const [selectedBlock, setSelectedBlock] = useState<ISelectedBlock | null>(null);
+  const [existingBlocks, setExistingBlocks] = useState<IBloque[]>([]);
+  const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
+
+  // --- ESTADO DEL PASO 2: FORMULARIO DE REPORTE ---
   const [metrologo, setMetrologo] = useState('');
   const [codigoEquipo, setCodigoEquipo] = useState('');
-  
-  // Estado para las previsualizaciones de imágenes
   const [imagenesPreview, setImagenesPreview] = useState<string[]>([]);
-  
-  // Estado para los archivos
   const [imagenes, setImagenes] = useState<FileList | null>(null);
 
-  // Estados para la UI (carga y errores)
+  // Estados generales de UI (carga, error, éxito)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Manejador para los inputs de texto
+  // --- CARGAR BLOQUES EXISTENTES AL INICIAR ---
+  useEffect(() => {
+    const loadExistingBlocks = async () => {
+      try {
+        setIsLoadingBlocks(true);
+        const response = await obtenerReportes(); // 'response' es IBloque[]
+
+        // --- ¡LÍNEA CORREGIDA! ---
+        setExistingBlocks(response); // 'response' ya es el array
+
+      } catch (err: any) { // <-- He añadido :any
+        // También es buena idea mostrar el error real
+        setError((err as Error).message || 'Error al cargar los bloques existentes.');
+      } finally {
+        setIsLoadingBlocks(false);
+      }
+    };
+
+    loadExistingBlocks();
+  }, []);
+
+  // --- MANEJADORES DE INPUTS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
     setter(e.target.value);
   };
 
-  // Manejador para el input de archivos (de galería O cámara nativa)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      
-      // Crear previsualizaciones para los archivos nuevos
       const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-      setImagenesPreview(prev => [...prev, ...newPreviews]); // Combina con las previews existentes
+      setImagenesPreview(prev => [...prev, ...newPreviews]);
 
-      // Combinar los archivos nuevos con los existentes (si los hay)
       const newFileList = new DataTransfer();
-      
-      // 1. Agregar las imágenes existentes (de la cámara o galería)
       if (imagenes) {
         for (const imagen of Array.from(imagenes)) {
           newFileList.items.add(imagen);
         }
       }
-      
-      // 2. Agregar las imágenes nuevas
       newFiles.forEach(file => newFileList.items.add(file));
-      
       setImagenes(newFileList.files);
     }
   };
 
-  // Función para eliminar una imagen
   const removeImage = (index: number) => {
     if (imagenes) {
       const newFileList = new DataTransfer();
       const filesArray = Array.from(imagenes);
-      
-      // Revocar la URL de la imagen que se va a eliminar
       URL.revokeObjectURL(imagenesPreview[index]);
-
       filesArray.splice(index, 1);
       filesArray.forEach(file => newFileList.items.add(file));
       setImagenes(newFileList.files);
-      
-      // Eliminar preview
       setImagenesPreview(prev => prev.filter((_, i) => i !== index));
     }
   };
 
-  // Limpiar los recursos al desmontar el componente
-  React.useEffect(() => {
+  // Limpiar URLs al desmontar
+  useEffect(() => {
     return () => {
-      // Limpia todas las URLs de previsualización para evitar fugas de memoria
       imagenesPreview.forEach(url => URL.revokeObjectURL(url));
     };
   }, [imagenesPreview]);
 
-  // Manejador del envío del formulario
+
+  // --- LÓGICA DE NAVEGACIÓN DE PASOS ---
+
+  // 1. Cuando el usuario selecciona un BLOQUE EXISTENTE del <select>
+  const handleBlockSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    if (selectedValue) {
+      const [departamento, nombreCliente] = selectedValue.split('|');
+      setSelectedBlock({ departamento, nombreCliente });
+    }
+  };
+
+  // 2. Cuando el usuario CREA UN NUEVO BLOQUE
+  const handleCreateNewBlock = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Tomamos los valores de los inputs del formulario "Paso 1"
+    const newDepartamento = (e.target as any).departamento.value;
+    const newNombreCliente = (e.target as any).nombreCliente.value;
+
+    if (newDepartamento && newNombreCliente) {
+      setSelectedBlock({ departamento: newDepartamento, nombreCliente: newNombreCliente });
+    }
+  };
+
+  // 3. Botón para volver al "Paso 1"
+  const changeBlock = () => {
+    setSelectedBlock(null);
+    setError(null);
+    setSuccess(null);
+  };
+
+
+  // --- MANEJADOR DE ENVÍO DEL REPORTE (PASO 2) ---
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Evita que la página se recargue
-    
+    e.preventDefault();
+
+    // Validaciones
+    if (!selectedBlock) {
+      setError('No se ha seleccionado ningún bloque.');
+      return;
+    }
     if (!imagenes || imagenes.length === 0) {
       setError('Debes seleccionar al menos una imagen.');
       return;
@@ -90,30 +144,33 @@ export const FormularioEnvio: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    // 1. Creamos el FormData
     const formData = new FormData();
-    formData.append('departamento', departamento);
-    formData.append('nombreCliente', nombreCliente);
+    // AÑADE LOS DATOS DEL BLOQUE (del estado)
+    formData.append('departamento', selectedBlock.departamento);
+    formData.append('nombreCliente', selectedBlock.nombreCliente);
+
+    // AÑADE LOS DATOS DEL REPORTE (del formulario)
     formData.append('metrologo', metrologo);
     formData.append('codigoEquipo', codigoEquipo);
-    
-    // 2. Adjuntamos TODAS las imágenes
+
     for (let i = 0; i < imagenes.length; i++) {
       formData.append('imagenesEquipo', imagenes[i]);
     }
 
     try {
-      
       await subirReporte(formData);
-      setSuccess('¡Reporte enviado con éxito!');
-      
-      setDepartamento('');
-      setNombreCliente('');
+      setSuccess('¡Reporte añadido al bloque exitosamente!');
+
+      // LIMPIAMOS SOLO EL FORMULARIO DE REPORTE
+      // NO limpiamos el bloque seleccionado
       setMetrologo('');
       setCodigoEquipo('');
       setImagenes(null);
-      setImagenesPreview([]); 
-      (e.target as HTMLFormElement).reset(); // Resetea el input de archivos
+      setImagenesPreview([]);
+      (e.target as HTMLFormElement).reset();
+
+      // Opcional: Recargar la lista de bloques en segundo plano
+      obtenerReportes().then(response => setExistingBlocks(response));
 
     } catch (err: any) {
       setError(err.message || 'Ocurrió un error desconocido.');
@@ -122,108 +179,126 @@ export const FormularioEnvio: React.FC = () => {
     }
   };
 
+
+  // --- RENDERIZADO CONDICIONAL ---
+
+  // VISTA 1: El usuario NO ha seleccionado un bloque
+  if (!selectedBlock) {
+    return (
+      <div>
+        <h2>Paso 1: Seleccione o Cree un Bloque</h2>
+        {isLoadingBlocks && <p>Cargando bloques existentes...</p>}
+        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+
+        <div style={{ marginBottom: '2rem' }}>
+          <label htmlFor="select-bloque">Seleccionar Bloque Existente:</label>
+          <select id="select-bloque" onChange={handleBlockSelect} defaultValue="">
+            <option value="" disabled>-- Elija un bloque --</option>
+            {existingBlocks.map((bloque) => (
+              <option key={bloque._id} value={`${bloque.departamento}|${bloque.nombreCliente}`}>
+                {bloque.departamento} / {bloque.nombreCliente} ({bloque.reportes.length} reportes)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <hr />
+
+        <div>
+          <h3>...O Crear un Nuevo Bloque:</h3>
+          <form onSubmit={handleCreateNewBlock}>
+            <div>
+              <label htmlFor="departamento">Lugar / Departamento:</label>
+              <input id="departamento" type="text" required />
+            </div>
+            <div>
+              <label htmlFor="nombreCliente">Cliente / Clínica:</label>
+              <input id="nombreCliente" type="text" required />
+            </div>
+            <button type="submit" style={{ marginTop: '1rem' }}>
+              Continuar
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // VISTA 2: El usuario YA seleccionó un bloque
   return (
     <div>
-      <h2>Nuevo Reporte de Equipo</h2>
+      <div style={{ background: '#eee', padding: '1rem', borderRadius: '8px' }}>
+        <h4>Añadiendo reporte a:</h4>
+        <h3>{selectedBlock.departamento} / {selectedBlock.nombreCliente}</h3>
+        <button type-="button" onClick={changeBlock}>
+          (Cambiar Bloque)
+        </button>
+      </div>
+
+      <h2 style={{ marginTop: '2rem' }}>Paso 2: Añadir Nuevo Reporte</h2>
+
+      {/* Este es tu formulario original, pero sin los campos de bloque */}
       <form onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="departamento">Lugar / Departamento: </label>
-          <input 
-            id="departamento"
-            type="text" 
-            value={departamento} 
-            onChange={(e) => handleInputChange(e, setDepartamento)} 
-            required 
-          />
-        </div>
-        <div>
-          <label htmlFor="nombreCliente">Cliente / Clinica: </label>
-          <input 
-            id="nombreCliente"
-            type="text" 
-            value={nombreCliente} 
-            onChange={(e) => handleInputChange(e, setNombreCliente)} 
-            required 
-          />
-        </div>
-        <div>
           <label htmlFor="metrologo">Metrólogo:</label>
-          <input 
+          <input
             id="metrologo"
-            type="text" 
-            value={metrologo} 
-            onChange={(e) => handleInputChange(e, setMetrologo)} 
-            required 
+            type="text"
+            value={metrologo}
+            onChange={(e) => handleInputChange(e, setMetrologo)}
+            required
           />
         </div>
         <div>
           <label htmlFor="codigoEquipo">Código de Equipo:</label>
-          <input 
+          <input
             id="codigoEquipo"
-            type="text" 
-            value={codigoEquipo} 
-            onChange={(e) => handleInputChange(e, setCodigoEquipo)} 
-            required 
+            type="text"
+            value={codigoEquipo}
+            onChange={(e) => handleInputChange(e, setCodigoEquipo)}
+            required
           />
         </div>
 
         <div>
           <label htmlFor="imagenes">Imágenes del Equipo:</label>
-          <input 
+          <input
             id="imagenes"
-            type="file" 
-            onChange={handleFileChange} 
-            accept="image/*" 
-            multiple 
-            capture="camera" 
+            type="file"
+            onChange={handleFileChange}
+            accept="image/*"
+            multiple
+            capture="environment" //camera
           />
-          {/* Todos los botones y el <video> de la cámara en vivo han sido eliminados */}
         </div>
 
         {/* Previsualización de imágenes */}
         {imagenesPreview.length > 0 && (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
             gap: '1rem',
-            marginTop: '1rem' 
+            marginTop: '1rem'
           }}>
             {imagenesPreview.map((preview, index) => (
               <div key={preview} style={{ position: 'relative' }}>
-                <img 
-                  src={preview} 
-                  alt={`Preview ${index + 1}`} 
-                  style={{ width: '100%', height: '150px', objectFit: 'cover' }} 
+                <img
+                  src={preview}
+                  alt={`Preview ${index + 1}`}
+                  style={{ width: '100%', height: '150px', objectFit: 'cover' }}
                 />
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  style={{
-                    position: 'absolute',
-                    top: '5px',
-                    right: '5px',
-                    background: 'red',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '24px',
-                    height: '24px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ×
-                </button>
+                <button type="button" onClick={() => removeImage(index)} style={{ /* ...tus estilos... */ }}>×</button>
               </div>
             ))}
           </div>
         )}
-        
-        <button 
-          type="submit" 
-          disabled={loading || imagenesPreview.length === 0} // Condición actualizada
+
+        <button
+          type="submit"
+          disabled={loading || imagenesPreview.length === 0}
           style={{ marginTop: '1rem' }}
         >
-          {loading ? 'Enviando...' : 'Enviar Reporte'}
+          {loading ? 'Enviando...' : 'Añadir Reporte al Bloque'}
         </button>
 
         {/* Mensajes de estado */}

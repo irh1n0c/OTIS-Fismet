@@ -1,4 +1,4 @@
-const Reporte = require('../models/MongoModelo');
+const Bloque = require('../models/MongoModelo');
 
 /**
  * @desc    Crear un nuevo reporte
@@ -22,33 +22,40 @@ exports.crearReporte = async (req, res) => {
     }));
 
     // 4. Creamos el nuevo reporte usando el Modelo
-    const nuevoReporte = new Reporte({
+    const nuevoReporte ={
       departamento,
       nombreCliente,
       metrologo,
       codigoEquipo,
       imagenesEquipo: imagenesParaGuardar
       // 'fecha' y 'timestamps' se agregan automáticamente
-    });
-
-    // 5. Guardamos en la base de datos
-    await nuevoReporte.save();
+    };
+    const bloqueActualizado = await Bloque.findOneAndUpdate(
+      { departamento, nombreCliente },
+      { $push: { reportes: nuevoReporte } },
+      { new: true, upsert: true } // Crea el bloque si no existe
+    );
 
     // 6. Enviamos respuesta de éxito
     res.status(201).json({ 
       msg: 'Reporte creado exitosamente', 
-      reporte: nuevoReporte 
+      reporte: bloqueActualizado
     });
-
   } catch (err) {
-    //console.error(err.message);
     console.error("EL ERROR COMPLETO DEL BACKEND ES:", err);
-    // Error de código duplicado (unique: true)
+    
+    // Error de código duplicado
     if (err.code === 11000) {
-      return res.status(400).json({ msg: `Error: El código de equipo '${err.keyValue.codigoEquipo}' ya existe.` });
+      // Revisa si el error es del 'codigoEquipo' (dentro del array)
+      if (err.keyPattern && err.keyPattern['reportes.codigoEquipo']) {
+         return res.status(400).json({ msg: `Error: El código de equipo '${codigoEquipo}' ya existe.` });
+      }
+      // Revisa si el error es del 'departamento/clinica' (del bloque)
+      if (err.keyPattern && err.keyPattern.departamento) {
+         return res.status(400).json({ msg: `Error: El bloque para '${departamento}' y '${nombreCliente}' ya existe (error de índice).` });
+      }
     }
-
-    // Otros errores (campos 'required' faltantes, etc.)
+    
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map(val => val.message);
       return res.status(400).json({ msg: messages.join(', ') });
@@ -65,8 +72,8 @@ exports.crearReporte = async (req, res) => {
  */
 exports.obtenerReportes = async (req, res) => {
   try {
-    const reportes = await Reporte.find().sort({ fecha: -1 }); // Del más nuevo al más viejo
-    res.json(reportes);
+    const bloques = await Bloque.find().sort({ updatedAt: -1 }); // Del más nuevo al más viejo
+    res.json(bloques);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Error del Servidor');

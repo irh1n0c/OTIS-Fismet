@@ -1,37 +1,67 @@
 // frontend/src/services/api.ts
 import axios from 'axios';
 
-interface Reporte {
+// --- NUEVAS INTERFACES (basadas en tu MongoModelo.js) ---
+
+// 1. Interface para el reporte individual (el sub-documento)
+export interface IReporteIndividual {
   _id: string;
-  departamento: string;
-  nombreCliente: string;
+  fecha: string;
   metrologo: string;
   codigoEquipo: string;
   imagenesEquipo: Array<{
     url: string;
     public_id: string;
   }>;
-  fecha: string;
 }
 
+
+// 2. Interface para el documento principal (el Bloque)
+// Esta es la misma que usas en FormularioEnvio.tsx
+export interface IBloque {
+  _id: string;
+  departamento: string;
+  nombreCliente: string;
+  reportes: IReporteIndividual[];
+  createdAt: string; // Añadido por timestamps
+  updatedAt: string; // Añadido por timestamps
+}
+
+// 3. Interface para la respuesta al crear un reporte
+interface ISubirReporteResponse {
+  msg: string;
+  bloque: IBloque; // El backend devuelve el 'bloque' actualizado
+}
+
+// --- CLIENTE AXIOS (Correcto como está) ---
+
 const apiClient = axios.create({
-  //baseURL: 'http://192.168.100.33:5000/api'
-  //baseURL: 'http://localhost:5000/api', // 
+  // baseURL (comentada) es correcto para que funcione el proxy de Vite
 });
 
-export const subirReporte = async (formData: FormData) => {
-  const response = await apiClient.post<{ msg: string; reporte: Reporte }>('/api/reportes', formData, {
+
+// --- FUNCIONES DE API (Corregidas) ---
+
+/**
+ * Sube un nuevo reporte y lo añade a un bloque.
+ */
+export const subirReporte = async (formData: FormData): Promise<ISubirReporteResponse> => {
+  // El tipo de respuesta ahora es ISubirReporteResponse
+  const response = await apiClient.post<ISubirReporteResponse>('/api/reportes', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response.data;
+  return response.data; // Devuelve { msg: '...', bloque: {...} }
 };
 
 /**
- * Obtiene todos los reportes (para el dashboard del admin)
+ * Obtiene todos los Bloques de reportes.
  */
-export const obtenerReportes = async (): Promise<Reporte[]> => {
-  const response = await apiClient.get<Reporte[]>('/api/reportes');
-  return response.data;
+export const obtenerReportes = async (): Promise<IBloque[]> => {
+  // Ahora promete y devuelve un array de IBloque[], no Reporte[]
+  const response = await apiClient.get<IBloque[]>('/api/reportes');
+  return response.data; // Devuelve el array de bloques
 };
+
+

@@ -1,20 +1,11 @@
 const mongoose = require('mongoose');
 
-const ReporteSchema = new mongoose.Schema({
+const ReporteIndividualSchema = new mongoose.Schema({
   fecha: {
     type: Date,
     default: Date.now
   },
-  departamento: {
-    type: String,
-    required: [true, 'El departamento es obligatorio'],
-    trim: true
-  },
-  nombreCliente: {
-    type: String,
-    required: [true, 'El nombre del cliente es obligatorio'],
-    trim: true
-  },
+
   metrologo: {
     type: String,
     required: [true, 'El nombre del metrólogo es obligatorio'],
@@ -38,10 +29,27 @@ const ReporteSchema = new mongoose.Schema({
       }
     }
   ]
-}, {
+});
+
+const BloqueSchema = new mongoose.Schema({
+  departamento: {
+    type: String,
+    required: [true, 'El departamento es obligatorio'],
+    trim: true
+  },
+    
+  nombreCliente: {
+    type: String,
+    required: [true, 'El nombre del cliente es obligatorio'],
+    trim: true
+  },
+  reportes: [ReporteIndividualSchema]
+},
+{
   // Esto agrega automáticamente 'createdAt' y 'updatedAt'
   timestamps: true 
 });
 
-
-module.exports = mongoose.model('Reporte', ReporteSchema);
+// Aseguramos que la combinación de departamento y clínica sea única
+BloqueSchema.index({ departamento: 1, clinica: 1 }, { unique: true });
+module.exports = mongoose.model('Bloque', BloqueSchema);

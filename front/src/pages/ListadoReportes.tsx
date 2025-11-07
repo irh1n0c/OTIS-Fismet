@@ -1,35 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { obtenerReportes } from '../services/api';
+// Importa las funciones y las NUEVAS interfaces desde tu api.ts
+import { obtenerReportes, type IBloque} from '../services/api';
 
-interface Reporte {
-  _id: string;
-  departamento: string;
-  nombreCliente: string;
-  metrologo: string;
-  codigoEquipo: string;
-  imagenesEquipo: Array<{
-    url: string;
-    public_id: string;
-  }>;
-  fecha: string;
-}
+// (La interfaz 'Reporte' local ya no es necesaria, usamos las de api.ts)
 
 export const ListadoReportes: React.FC = () => {
-  const [reportes, setReportes] = useState<Reporte[]>([]);
+  // 1. El estado principal ahora almacena Bloques, no Reportes
+  const [bloques, setBloques] = useState<IBloque[]>([]);
   const [filtroMetrologo, setFiltroMetrologo] = useState('');
-  const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({});
+  const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({}); // La clave será el bloque._id
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    cargarReportes();
+    cargarBloques();
   }, []);
 
-  const cargarReportes = async () => {
+  const cargarBloques = async () => {
     try {
       setLoading(true);
-      const data = await obtenerReportes();
-      setReportes(data);
+      const data = await obtenerReportes(); // Esto devuelve IBloque[]
+      setBloques(data);
       setError(null);
     } catch (err) {
       setError('Error al cargar los reportes: ' + (err as Error).message);
@@ -38,76 +29,114 @@ export const ListadoReportes: React.FC = () => {
     }
   };
 
-  // Descarga las imágenes de un reporte en una carpeta elegida por el usuario
-  const handleDownloadReporte = async (reporte: Reporte) => {
-    setDownloadStatus(prev => ({ ...prev, [reporte._id]: 'downloading' }));
+  // 2. NUEVA FUNCIÓN DE DESCARGA (por Bloque)
+  const handleDownloadBloque = async (bloque: IBloque) => {
+    setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Iniciando...' }));
+    
     try {
-      // Preferir File System Access API cuando esté disponible
-  const hasDirPicker = typeof (globalThis as any).showDirectoryPicker === 'function';
-      const folderName = `${reporte.metrologo}_${reporte.codigoEquipo}`;
+      const hasDirPicker = typeof (globalThis as any).showDirectoryPicker === 'function';
 
       if (hasDirPicker) {
-        // El usuario elige una carpeta raíz donde nosotros creamos una subcarpeta
-        // Nota: API solo funciona en navegadores que la soporten (Chromium desktop/Android en versiones recientes)
-  // @ts-ignore
-  const rootHandle: FileSystemDirectoryHandle = await (globalThis as any).showDirectoryPicker();
-        const targetDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
+        // --- MÉTODO MODERNO (con carpetas y subcarpetas) ---
+        // @ts-ignore
+        const rootHandle: FileSystemDirectoryHandle = await (globalThis as any).showDirectoryPicker();
+        
+        // 1. Crear carpeta padre (Cliente)
+        const parentDir = await rootHandle.getDirectoryHandle(bloque.nombreCliente, { create: true });
 
-        let idx = 0;
-        for (const imagen of reporte.imagenesEquipo) {
-          idx++;
-          setDownloadStatus(prev => ({ ...prev, [reporte._id]: `Guardando ${idx}/${reporte.imagenesEquipo.length}` }));
-          const resp = await fetch(imagen.url);
-          if (!resp.ok) throw new Error(`Error al descargar ${imagen.url}`);
-          const blob = await resp.blob();
-          const mime = blob.type || 'image/jpeg';
-          const ext = mime.split('/')[1] || 'jpg';
-          const fileName = `${reporte.codigoEquipo}_${idx}.${ext}`;
+        // 2. Iterar sobre cada REPORTE dentro del bloque
+        let reporteIdx = 0;
+        for (const reporte of bloque.reportes) {
+          reporteIdx++;
+          setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Procesando reporte ${reporteIdx}/${bloque.reportes.length}` }));
 
-          const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
-          const writable = await fileHandle.createWritable();
-          await writable.write(blob);
-          await writable.close();
+          // 3. Crear subcarpeta (Metrólogo_Codigo)
+          const reportFolderName = `${reporte.metrologo}_${reporte.codigoEquipo}`;
+          const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
+
+          // 4. Iterar sobre cada IMAGEN y guardarla en la subcarpeta
+          let imgIdx = 0;
+          for (const imagen of reporte.imagenesEquipo) {
+            imgIdx++;
+            const resp = await fetch(imagen.url);
+            if (!resp.ok) throw new Error(`Error al descargar ${imagen.url}`);
+            const blob = await resp.blob();
+            const ext = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+            const fileName = `${reporte.codigoEquipo}_${imgIdx}.${ext}`;
+
+            const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+          }
         }
-        setDownloadStatus(prev => ({ ...prev, [reporte._id]: 'completado' }));
+        setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Completado' }));
 
       } else {
-        // Fallback: forzar descargas individuales. No es posible crear carpetas automáticamente
-        // desde todos los navegadores; colocamos nombres claros para que el usuario los agrupe.
-        let idx = 0;
-        for (const imagen of reporte.imagenesEquipo) {
-          idx++;
-          setDownloadStatus(prev => ({ ...prev, [reporte._id]: `Descargando ${idx}/${reporte.imagenesEquipo.length}` }));
-          const extGuess = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
-          const fileName = `${reporte.codigoEquipo}_${idx}.${extGuess}`;
-          const a = document.createElement('a');
-          a.href = imagen.url;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          // pequeña pausa para no saturar el navegador
-          await new Promise(r => setTimeout(r, 200));
+        // --- MÉTODO FALLBACK (Descargas individuales con nombres claros) ---
+        setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Iniciando descargas individuales...' }));
+        let totalImages = 0;
+        bloque.reportes.forEach(r => totalImages += r.imagenesEquipo.length);
+        let currentImage = 0;
+
+        for (const reporte of bloque.reportes) {
+          let imgIdx = 0;
+          for (const imagen of reporte.imagenesEquipo) {
+            imgIdx++;
+            currentImage++;
+            setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Descargando ${currentImage}/${totalImages}` }));
+            
+            // Crear un nombre de archivo descriptivo
+            const extGuess = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+            const fileName = `${bloque.nombreCliente}_${reporte.metrologo}_${reporte.codigoEquipo}_${imgIdx}.${extGuess}`;
+            
+            const a = document.createElement('a');
+            a.href = imagen.url;
+            a.download = fileName; // El nombre de archivo ahora incluye el cliente y metrólogo
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            await new Promise(r => setTimeout(r, 300)); // Pausa más larga
+          }
         }
-        setDownloadStatus(prev => ({ ...prev, [reporte._id]: 'completado (descargas individuales)' }));
+        setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Completado (descargas individuales)' }));
       }
 
     } catch (err) {
-      setDownloadStatus(prev => ({ ...prev, [reporte._id]: 'error: ' + ((err as Error).message || err) }));
+      setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Error: ' + ((err as Error).message || err) }));
     } finally {
-      // dejar mensaje visible un par de segundos
-      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [reporte._id]: 'idle' })), 3500);
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'idle' })), 4000);
     }
   };
 
-  const reportesFiltrados = reportes.filter(reporte => 
-    filtroMetrologo === '' || 
-    reporte.metrologo.toLowerCase().includes(filtroMetrologo.toLowerCase())
-  );
+  // 3. LÓGICA DE FILTRADO (Ahora filtra los reportes DENTRO de cada bloque)
+  const bloquesFiltrados = bloques
+    .map(bloque => {
+      // Si no hay filtro, devuelve el bloque tal cual
+      if (filtroMetrologo === '') {
+        return bloque;
+      }
+      
+      // Si hay filtro, filtra los reportes internos
+      const reportesCoincidentes = bloque.reportes.filter(reporte =>
+        reporte.metrologo.toLowerCase().includes(filtroMetrologo.toLowerCase())
+      );
 
+      // Si se encontraron reportes, devuelve el bloque CON SOLO esos reportes
+      if (reportesCoincidentes.length > 0) {
+        return { ...bloque, reportes: reportesCoincidentes };
+      }
+      
+      // Si ningún reporte coincide, este bloque no se mostrará
+      return null;
+    })
+    .filter((bloque): bloque is IBloque => bloque !== null); // Elimina los bloques nulos
+
+
+  // 4. RENDERIZADO (Ahora itera sobre bloques, y LUEGO sobre reportes)
   return (
     <div className="listado-reportes" style={{ padding: '20px' }}>
-      <h2>Listado de Reportes</h2>
+      <h2>Listado de Reportes por Cliente</h2>
       
       <div style={{ marginBottom: '20px' }}>
         <label htmlFor="filtroMetrologo" style={{ marginRight: '10px' }}>
@@ -127,79 +156,95 @@ export const ListadoReportes: React.FC = () => {
       {error && <p style={{ color: 'red' }}>{error}</p>}
       
       {!loading && !error && (
-        <div style={{ 
-          display: 'grid', 
-          gap: '20px',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-        }}>
-          {reportesFiltrados.map(reporte => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          
+          {/* --- BUCLE EXTERNO (POR BLOQUE) --- */}
+          {bloquesFiltrados.map(bloque => (
             <div 
-              key={reporte._id}
+              key={bloque._id}
               style={{
-                border: '1px solid #ddd',
+                border: '1px solid #005A9C', // Borde más oscuro para el bloque
                 borderRadius: '8px',
                 padding: '15px',
-                backgroundColor: '#fff',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                backgroundColor: '#f9f9f9'
               }}
             >
-              <h3 style={{ marginTop: 0 }}>Equipo: {reporte.codigoEquipo}</h3>
-              <p><strong>Metrólogo:</strong> {reporte.metrologo}</p>
-              <p><strong>Departamento:</strong> {reporte.departamento}</p>
-              <p><strong>Cliente:</strong> {reporte.nombreCliente}</p>
-              <p><strong>Fecha:</strong> {new Date(reporte.fecha).toLocaleDateString()}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ marginTop: 0, color: '#003366' }}>{bloque.nombreCliente}</h3>
+                  <p style={{ marginTop: '-10px' }}><strong>Ubicación:</strong> {bloque.departamento}</p>
+                </div>
+                {/* BOTÓN DE DESCARGA POR BLOQUE */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadBloque(bloque)}
+                    disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
+                  >
+                    {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? 'Descargando...' : `Descargar todo (${bloque.reportes.length} reportes)`}
+                  </button>
+                  {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' && (
+                    <small style={{ display: 'block' }}>{downloadStatus[bloque._id]}</small>
+                  )}
+                </div>
+              </div>
               
+              <hr />
+
+              {/* --- BUCLE INTERNO (POR REPORTE INDIVIDUAL) --- */}
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                gap: '10px',
-                marginTop: '10px'
+                gap: '20px',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
               }}>
-                {reporte.imagenesEquipo.map((imagen, index) => (
-                  <button
-                    key={imagen.public_id}
-                    type="button"
-                    onClick={() => window.open(imagen.url, '_blank')}
-                    aria-label={`Abrir imagen ${index + 1} del equipo ${reporte.codigoEquipo}`}
+                {bloque.reportes.map(reporte => (
+                  <div 
+                    key={reporte._id} // Usamos el _id del reporte individual
                     style={{
-                      padding: 0,
-                      border: 'none',
-                      background: 'none',
-                      cursor: 'pointer'
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      padding: '15px',
+                      backgroundColor: '#fff',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                     }}
                   >
-                    <img
-                      src={imagen.url}
-                      alt={`Imagen ${index + 1} del equipo ${reporte.codigoEquipo}`}
-                      style={{
-                        width: '100%',
-                        height: '100px',
-                        objectFit: 'cover',
-                        borderRadius: '4px'
-                      }}
-                    />
-                  </button>
+                    <h4 style={{ marginTop: 0 }}>Equipo: {reporte.codigoEquipo}</h4>
+                    <p><strong>Metrólogo:</strong> {reporte.metrologo}</p>
+                    <p><strong>Fecha:</strong> {new Date(reporte.fecha).toLocaleDateString()}</p>
+                    
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', // Imágenes más pequeñas
+                      gap: '10px',
+                      marginTop: '10px'
+                    }}>
+                      {reporte.imagenesEquipo.map((imagen, index) => (
+                        <button
+                          key={imagen.public_id}
+                          type="button"
+                          onClick={() => window.open(imagen.url, '_blank')}
+                          aria-label={`Abrir imagen ${index + 1} del equipo ${reporte.codigoEquipo}`}
+                          style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                        >
+                          <img
+                            src={imagen.url}
+                            alt={`Imagen ${index + 1} del equipo ${reporte.codigoEquipo}`}
+                            style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px' }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    {/* El botón de descarga individual ya no está aquí */}
+                  </div>
                 ))}
-              </div>
-              <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadReporte(reporte)}
-                  disabled={!!downloadStatus[reporte._id] && downloadStatus[reporte._id] !== 'idle'}
-                >
-                  {downloadStatus[reporte._id] === 'downloading' ? 'Descargando...' : 'Descargar carpeta'}
-                </button>
-                {downloadStatus[reporte._id] && downloadStatus[reporte._id] !== 'idle' && (
-                  <small>{downloadStatus[reporte._id]}</small>
-                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {!loading && !error && reportesFiltrados.length === 0 && (
-        <p>No se encontraron reportes {filtroMetrologo && 'para el metrólogo especificado'}.</p>
+      {!loading && !error && bloquesFiltrados.length === 0 && (
+        <p>No se encontraron bloques {filtroMetrologo && 'con reportes para el metrólogo especificado'}.</p>
       )}
     </div>
   );
