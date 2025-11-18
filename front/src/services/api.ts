@@ -35,9 +35,14 @@ interface ISubirReporteResponse {
 
 // --- CLIENTE AXIOS (Correcto como está) ---
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const apiClient = axios.create({
-  // baseURL (comentada) es correcto para que funcione el proxy de Vite
+  baseURL: API_URL 
 });
+// const apiClient = axios.create({
+//   // baseURL (comentada) es correcto para que funcione el proxy de Vite
+// });
 
 
 // --- FUNCIONES DE API (Corregidas) ---
