@@ -12,10 +12,7 @@ connectDB();
 const app = express();
 
 // Middlewares
-app.use(cors({
-  origin: ['http://localhost:5173', 'https://otis-fismet-frontend.vercel.app'] // Pon aquí TU URL DE VERCEL exacta
-}));
-//app.use(cors()); // Permite peticiones desde tu frontend
+app.use(cors()); // Permite peticiones desde tu frontend
 app.use(express.json()); // Permite leer JSON del body
 app.use(express.urlencoded({ extended: true })); // Permite leer datos de formularios
 
