@@ -4,6 +4,7 @@ import {
   subirReporte,
   obtenerReportes,
   anadirImagenesReporte,
+  crearNuevoBloque,
   type IBloque,
   type IReporteIndividual
 } from '../services/api'; //vienen de api.ts
@@ -213,22 +214,73 @@ export const FormularioEnvio: React.FC = () => {
   };
 
   // 2. Cuando el usuario CREA UN NUEVO BLOQUE
-  const handleCreateNewBlock = (e: React.FormEvent<HTMLFormElement>) => {
+  // const handleCreateNewBlock = (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   // Tomamos los valores de los inputs del formulario "Paso 1"
+  //   const newDepartamento = (e.target as any).departamento.value;
+  //   const newNombreCliente = (e.target as any).nombreCliente.value;
+
+  //   if (newDepartamento && newNombreCliente) {
+  //     setSelectedBlock({ departamento: newDepartamento, nombreCliente: newNombreCliente });
+  //   }
+  // };
+  // 2. Cuando el usuario CREA UN NUEVO BLOQUE (Modificado)
+  // 2. Cuando el usuario CREA UN NUEVO BLOQUE (Corregido)
+  const handleCreateNewBlock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Tomamos los valores de los inputs del formulario "Paso 1"
     const newDepartamento = (e.target as any).departamento.value;
     const newNombreCliente = (e.target as any).nombreCliente.value;
 
-    if (newDepartamento && newNombreCliente) {
-      setSelectedBlock({ departamento: newDepartamento, nombreCliente: newNombreCliente });
+    if (!newDepartamento || !newNombreCliente) return;
+
+    setLoading(true); // Usamos el loading general
+
+    try {
+      // A. Guardamos en el Backend
+      const nuevoBloque = await crearNuevoBloque(newDepartamento, newNombreCliente);
+
+      // B. ¡CLAVE! Lo añadimos a la lista local 'existingBlocks'
+      // De esta forma, si das "Atrás", el bloque ya estará en la lista
+      setExistingBlocks(prev => [nuevoBloque, ...prev]);
+
+      // C. Pasamos al siguiente paso
+      setSelectedBlock({
+        departamento: nuevoBloque.departamento,
+        nombreCliente: nuevoBloque.nombreCliente
+      });
+
+    } catch (err: any) {
+      console.error(err);
+      setError('Error al crear el bloque.');
+    } finally {
+      setLoading(false);
     }
   };
 
   // 3. Botón para volver al "Paso 1"
-  const changeBlock = () => {
-    setSelectedBlock(null);
-    setError(null);
-    setSuccess(null);
+  // const changeBlock = () => {
+  //   setSelectedBlock(null);
+  //   setError(null);
+  //   setSuccess(null);
+  // };
+  // 3. Botón para volver al "Paso 1" (Modificado)
+  const changeBlock = async () => {
+    // A. Indicamos que estamos cargando
+    setIsLoadingBlocks(true);
+
+    try {
+      // B. Pedimos la lista fresca a la base de datos
+      const bloquesActualizados = await obtenerReportes();
+      setExistingBlocks(bloquesActualizados);
+    } catch (err) {
+      console.error("Error al refrescar bloques:", err);
+    } finally {
+      setIsLoadingBlocks(false);
+      // C. Volvemos a la vista inicial
+      setSelectedBlock(null);
+      setError(null);
+      setSuccess(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

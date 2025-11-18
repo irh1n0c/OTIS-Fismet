@@ -93,7 +93,12 @@ exports.obtenerReportes = async (req, res) => {
 
       // Paso 2: "Desenrollar" el array de reportes
       // Esto trata a cada reporte como un documento separado temporalmente
-      { $unwind: "$reportes" },
+      { 
+        $unwind: {
+          path: "$reportes",
+          preserveNullAndEmptyArrays: true // Mantener bloques sin reportes
+        } 
+      },
 
       // Paso 3: Ordenar los REPORTES INDIVIDUALES (el más reciente primero)
       { $sort: { "reportes.fecha": -1 } },
@@ -169,6 +174,55 @@ exports.actualizarImagenesReporte = async (req, res) => {
 
   } catch (err) {
     console.error("EL ERROR COMPLETO DEL BACKEND ES:", err);
+    res.status(500).send('Error del Servidor');
+  }
+};
+
+/**
+ * @desc    Crear un bloque nuevo (sin reportes iniciales)
+ * @route   POST /api/reportes/bloque
+ * @access  Public
+ */
+exports.crearBloqueVacio = async (req, res) => {
+  try {
+    const { departamento, nombreCliente } = req.body;
+
+    // 1. Validar campos
+    if (!departamento || !nombreCliente) {
+      return res.status(400).json({ msg: 'Departamento y Cliente son obligatorios.' });
+    }
+
+    // 2. Verificar si ya existe
+    let bloque = await Bloque.findOne({ departamento, nombreCliente });
+    
+    if (bloque) {
+      // Si ya existe, simplemente lo devolvemos (no es un error fatal, solo avisamos)
+      return res.status(200).json({ 
+        msg: 'El bloque ya existía. Seleccionado correctamente.', 
+        bloque 
+      });
+    }
+
+    // 3. Crear nuevo bloque
+    bloque = new Bloque({
+      departamento,
+      nombreCliente,
+      reportes: [] // Array vacío
+    });
+
+    await bloque.save();
+
+    res.status(201).json({ 
+      msg: 'Bloque creado exitosamente', 
+      bloque 
+    });
+
+  } catch (err) {
+    console.error("Error creando bloque:", err);
+    // Capturar error de duplicado (por si acaso)
+    if (err.code === 11000) {
+      return res.status(400).json({ msg: 'Este bloque ya existe.' });
+    }
     res.status(500).send('Error del Servidor');
   }
 };

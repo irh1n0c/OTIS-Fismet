@@ -78,3 +78,11 @@ export const anadirImagenesReporte = async (formData: FormData): Promise<IBloque
   });
   return response.data.bloque; // Devuelve solo el bloque actualizado
 };
+
+export const crearNuevoBloque = async (departamento: string, nombreCliente: string): Promise<IBloque> => {
+  const response = await apiClient.post<{ msg: string, bloque: IBloque }>('/api/reportes/bloque', {
+    departamento,
+    nombreCliente
+  });
+  return response.data.bloque;
+};

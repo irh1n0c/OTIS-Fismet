@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../../config/cloudinary'); 
-const { crearReporte, obtenerReportes, actualizarImagenesReporte } = require('../../controllers/reporteController');
+const { crearReporte, obtenerReportes, actualizarImagenesReporte, crearBloqueVacio } = require('../../controllers/reporteController');
 const multer = require('multer'); 
 
 // 4. CREAMOS UN MANEJADOR DE ERRORES ESPECÍFICO
@@ -47,4 +47,5 @@ router.patch(
   actualizarImagenesReporte // Llama a la nueva función del controlador
 );
 
+router.post('/bloque', crearBloqueVacio);
 module.exports = router;
