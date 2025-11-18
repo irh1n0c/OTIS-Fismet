@@ -35,11 +35,14 @@ interface ISubirReporteResponse {
 
 // --- CLIENTE AXIOS (Correcto como está) ---
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = 'https://otis-fismet.onrender.com';
+// (Asegúrate de que esta sea la URL exacta que copiaste de Render, SIN barra al final)
 
 const apiClient = axios.create({
-  baseURL: API_URL 
+  baseURL: API_URL
 });
+
+console.log("API URL configurada:", API_URL);
 // const apiClient = axios.create({
 //   // baseURL (comentada) es correcto para que funcione el proxy de Vite
 // });
