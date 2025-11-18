@@ -1,8 +1,8 @@
 
 const express = require('express');
 const router = express.Router();
-const upload = require('../../config/cloudinary'); // 1. Importa el middleware de carga
-const { crearReporte, obtenerReportes } = require('../../controllers/reporteController'); // 2. Importa los controladores
+const upload = require('../../config/cloudinary'); 
+const { crearReporte, obtenerReportes, actualizarImagenesReporte } = require('../../controllers/reporteController');
 const multer = require('multer'); 
 
 // 4. CREAMOS UN MANEJADOR DE ERRORES ESPECÍFICO
@@ -22,10 +22,6 @@ function handleUploadErrors(err, req, res, next) {
   
   next();
 }
-
-// @route   POST /api/reportes
-// @desc    Crear un nuevo reporte
-// @access  Public
 router.post(
   '/', 
   // 5. MODIFICAMOS CÓMO SE LLAMA A 'upload.array'
@@ -41,5 +37,14 @@ router.post(
 );
 
 router.get('/', obtenerReportes);
+
+// @route   PATCH /api/reportes/imagenes
+// @desc    Añadir más imágenes a un reporte existente
+// @access  Public
+router.patch(
+  '/imagenes',
+  upload.array('imagenesEquipo', 10), // Reutiliza el middleware de carga
+  actualizarImagenesReporte // Llama a la nueva función del controlador
+);
 
 module.exports = router;

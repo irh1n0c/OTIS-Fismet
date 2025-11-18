@@ -65,3 +65,16 @@ export const obtenerReportes = async (): Promise<IBloque[]> => {
 };
 
 
+/**
+ * Añade más imágenes a un reporte existente.
+ */
+export const anadirImagenesReporte = async (formData: FormData): Promise<IBloque> => {
+  // Nota: La respuesta del backend devuelve { msg, bloque }
+  // Asumimos que la respuesta de Axios ya extrae 'data'
+  const response = await apiClient.patch<{ msg: string, bloque: IBloque }>('/api/reportes/imagenes', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data.bloque; // Devuelve solo el bloque actualizado
+};
