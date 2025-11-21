@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   subirReporte,
@@ -7,35 +6,52 @@ import {
   crearNuevoBloque,
   type IBloque,
   type IReporteIndividual
-} from '../services/api'; //vienen de api.ts
+} from '../services/api';
 import imageCompression from 'browser-image-compression';
 
-// --- INTERFAZ PARA TUS BLOQUES ---
+// --- UI IMPORTS (SHADCN & LUCIDE) ---
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import {
+  Camera,
+  Image as ImageIcon,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  UploadCloud,
+  MapPin,
+  User,
+  Hash
+} from "lucide-react";
 
-
+// --- INTERFACES ---
 interface ISelectedBlock {
   departamento: string;
   nombreCliente: string;
 }
 
 export const FormularioEnvio: React.FC = () => {
-
+  // --- ESTADOS (Lógica original) ---
   const [selectedBlock, setSelectedBlock] = useState<ISelectedBlock | null>(null);
   const [existingBlocks, setExistingBlocks] = useState<IBloque[]>([]);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
   const [metrologo, setMetrologo] = useState('');
   const [codigoEquipo, setCodigoEquipo] = useState('');
   const [imagenesPreview, setImagenesPreview] = useState<string[]>([]);
-  //imagenes como FileList
   const [imagenes, setImagenes] = useState<FileList | null>(null);
-  //para actuzalizar imagenes en reporte existente
   const [isUpdateMode, setIsUpdateMode] = useState(false);
-  //estado de compresion de imagenes
   const [isCompressing, setIsCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // --- EFECTOS Y HANDLERS (Lógica original intacta) ---
   useEffect(() => {
     const loadExistingBlocks = async () => {
       try {
@@ -48,7 +64,6 @@ export const FormularioEnvio: React.FC = () => {
         setIsLoadingBlocks(false);
       }
     };
-
     loadExistingBlocks();
   }, []);
 
@@ -56,30 +71,10 @@ export const FormularioEnvio: React.FC = () => {
     setter(e.target.value);
   };
 
-  // const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   if (e.target.files) {
-  //     const newFiles = Array.from(e.target.files);
-  //     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-  //     setImagenesPreview(prev => [...prev, ...newPreviews]);
-
-  //     const newFileList = new DataTransfer();
-  //     if (imagenes) {
-  //       for (const imagen of Array.from(imagenes)) {
-  //         newFileList.items.add(imagen);
-  //       }
-  //     }
-  //     newFiles.forEach(file => newFileList.items.add(file));
-  //     setImagenes(newFileList.files);
-  //   }
-  // };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      return;
-    }
+    if (!e.target.files || e.target.files.length === 0) return;
 
     const filesFromInput = Array.from(e.target.files);
-
     setIsCompressing(true);
     setError(null);
 
@@ -91,48 +86,32 @@ export const FormularioEnvio: React.FC = () => {
     };
 
     try {
-      // 1. Comprimimos (igual que antes)
       const compressedFilesPromises = filesFromInput.map(file => {
         console.log(`Original: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
         return imageCompression(file, options);
       });
 
-      // 2. Renombramos la variable para que sea más clara
       const compressedBlobs = await Promise.all(compressedFilesPromises);
-
       const newPreviews: string[] = [];
       const newFileList = new DataTransfer();
 
-      // 3. Añadimos los archivos existentes (igual que antes)
       if (imagenes) {
         for (const imagen of Array.from(imagenes)) {
           newFileList.items.add(imagen);
         }
       }
 
-      // --- 4. ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-      // Iteramos sobre los blobs comprimidos, usando el 'index'
-      // para encontrar el nombre del archivo original.
       compressedBlobs.forEach((blob, index) => {
-        const originalFile = filesFromInput[index]; // Obtenemos el archivo original
-
-        // Creamos un nuevo objeto 'File' desde el 'Blob'
+        const originalFile = filesFromInput[index];
         const compressedFile = new File([blob], originalFile.name, {
           type: blob.type,
           lastModified: Date.now(),
         });
-
         console.log(`Comprimido: ${compressedFile.name} (${(compressedFile.size / 1024 / 1024).toFixed(2)} MB)`);
-
-        // ¡Ahora sí añadimos un 'File' válido!
         newFileList.items.add(compressedFile);
-
-        // Creamos la preview desde el 'blob' (o el 'compressedFile', es igual)
         newPreviews.push(URL.createObjectURL(blob));
       });
-      // --- FIN DE LA CORRECCIÓN ---
 
-      // 5. Actualizamos los estados (igual que antes)
       setImagenes(newFileList.files);
       setImagenesPreview(prev => [...prev, ...newPreviews]);
 
@@ -149,38 +128,30 @@ export const FormularioEnvio: React.FC = () => {
     }
   };
 
-  //para actualizar imagenes en reporte existente
   const handleCodigoEquipoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newCodigo = e.target.value.trim();
     setCodigoEquipo(newCodigo);
 
-    if (!selectedBlock) return; // Sal si no hay bloque
+    if (!selectedBlock) return;
 
-    // 1. Encontrar el bloque actual en el que estamos
     const currentBlock = existingBlocks.find(
       b => b.departamento === selectedBlock.departamento && b.nombreCliente === selectedBlock.nombreCliente
     );
 
-    if (!currentBlock) return; // El bloque no está cargado (raro, pero seguro)
+    if (!currentBlock) return;
 
-    // 2. Buscar si el código ya existe DENTRO de ese bloque
     const existingReport = currentBlock.reportes.find(
       (r: IReporteIndividual) => r.codigoEquipo === newCodigo
     );
 
     if (existingReport) {
-      // --- ¡MODO ACTUALIZACIÓN! ---
-      console.log("Modo Actualización: Reporte encontrado.");
       setIsUpdateMode(true);
-      setMetrologo(existingReport.metrologo); // Auto-rellena y deshabilita
+      setMetrologo(existingReport.metrologo);
     } else {
-      // --- ¡MODO CREACIÓN! ---
-      console.log("Modo Creación: Código nuevo.");
       setIsUpdateMode(false);
-      setMetrologo(''); // Limpia por si acaso
+      setMetrologo('');
     }
   };
-
 
   const removeImage = (index: number) => {
     if (imagenes) {
@@ -194,61 +165,27 @@ export const FormularioEnvio: React.FC = () => {
     }
   };
 
-  // Limpiar URLs al desmontar
   useEffect(() => {
     return () => {
       imagenesPreview.forEach(url => URL.revokeObjectURL(url));
     };
   }, [imagenesPreview]);
 
-
-  // --- LÓGICA DE NAVEGACIÓN DE PASOS ---
-
-  // 1. Cuando el usuario selecciona un BLOQUE EXISTENTE del <select>
-  const handleBlockSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedValue = e.target.value;
-    if (selectedValue) {
-      const [departamento, nombreCliente] = selectedValue.split('|');
-      setSelectedBlock({ departamento, nombreCliente });
-    }
-  };
-
-  // 2. Cuando el usuario CREA UN NUEVO BLOQUE
-  // const handleCreateNewBlock = (e: React.FormEvent<HTMLFormElement>) => {
-  //   e.preventDefault();
-  //   // Tomamos los valores de los inputs del formulario "Paso 1"
-  //   const newDepartamento = (e.target as any).departamento.value;
-  //   const newNombreCliente = (e.target as any).nombreCliente.value;
-
-  //   if (newDepartamento && newNombreCliente) {
-  //     setSelectedBlock({ departamento: newDepartamento, nombreCliente: newNombreCliente });
-  //   }
-  // };
-  // 2. Cuando el usuario CREA UN NUEVO BLOQUE (Modificado)
-  // 2. Cuando el usuario CREA UN NUEVO BLOQUE (Corregido)
   const handleCreateNewBlock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newDepartamento = (e.target as any).departamento.value;
     const newNombreCliente = (e.target as any).nombreCliente.value;
 
     if (!newDepartamento || !newNombreCliente) return;
-
-    setLoading(true); // Usamos el loading general
+    setLoading(true);
 
     try {
-      // A. Guardamos en el Backend
       const nuevoBloque = await crearNuevoBloque(newDepartamento, newNombreCliente);
-
-      // B. ¡CLAVE! Lo añadimos a la lista local 'existingBlocks'
-      // De esta forma, si das "Atrás", el bloque ya estará en la lista
       setExistingBlocks(prev => [nuevoBloque, ...prev]);
-
-      // C. Pasamos al siguiente paso
       setSelectedBlock({
         departamento: nuevoBloque.departamento,
         nombreCliente: nuevoBloque.nombreCliente
       });
-
     } catch (err: any) {
       console.error(err);
       setError('Error al crear el bloque.');
@@ -257,26 +194,15 @@ export const FormularioEnvio: React.FC = () => {
     }
   };
 
-  // 3. Botón para volver al "Paso 1"
-  // const changeBlock = () => {
-  //   setSelectedBlock(null);
-  //   setError(null);
-  //   setSuccess(null);
-  // };
-  // 3. Botón para volver al "Paso 1" (Modificado)
   const changeBlock = async () => {
-    // A. Indicamos que estamos cargando
     setIsLoadingBlocks(true);
-
     try {
-      // B. Pedimos la lista fresca a la base de datos
       const bloquesActualizados = await obtenerReportes();
       setExistingBlocks(bloquesActualizados);
     } catch (err) {
       console.error("Error al refrescar bloques:", err);
     } finally {
       setIsLoadingBlocks(false);
-      // C. Volvemos a la vista inicial
       setSelectedBlock(null);
       setError(null);
       setSuccess(null);
@@ -286,62 +212,42 @@ export const FormularioEnvio: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Validaciones (se quedan igual)
-    if (!selectedBlock) {
-      setError('No se ha seleccionado ningún bloque.');
-      return;
-    }
-    if (!imagenes || imagenes.length === 0) {
-      setError('Debes seleccionar al menos una imagen.');
-      return;
-    }
+    if (!selectedBlock) { setError('No se ha seleccionado ningún bloque.'); return; }
+    if (!imagenes || imagenes.length === 0) { setError('Debes seleccionar al menos una imagen.'); return; }
 
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    // 1. Creamos el FormData vacío
     const formData = new FormData();
-
-    // 2. Las imágenes son comunes para ambos modos, las añadimos UNA SOLA VEZ
     for (let i = 0; i < imagenes.length; i++) {
       formData.append('imagenesEquipo', imagenes[i]);
     }
 
     try {
       if (isUpdateMode) {
-        // --- LÓGICA DE ACTUALIZACIÓN ---
-        // El modo 'update' SOLO necesita el código y las imágenes
         formData.append('codigoEquipo', codigoEquipo);
-
         await anadirImagenesReporte(formData);
-        setSuccess(`¡Imágenes añadidas exitosamente al equipo ${codigoEquipo}!`);
-
+        setSuccess(`¡Imágenes añadidas al equipo ${codigoEquipo}!`);
       } else {
-        // --- LÓGICA DE CREACIÓN ---
-        // El modo 'create' necesita TODOS los datos (además de las imágenes)
         formData.append('departamento', selectedBlock!.departamento);
         formData.append('nombreCliente', selectedBlock!.nombreCliente);
         formData.append('metrologo', metrologo);
         formData.append('codigoEquipo', codigoEquipo);
-
         await subirReporte(formData);
-        setSuccess('¡Reporte nuevo añadido al bloque exitosamente!');
+        setSuccess('¡Reporte nuevo creado exitosamente!');
       }
 
-      // --- Lógica de éxito (común) ---
       setMetrologo('');
       setCodigoEquipo('');
       setImagenes(null);
       setImagenesPreview([]);
       (e.target as HTMLFormElement).reset();
-      setIsUpdateMode(false); // Resetea el modo
-
-      // Recarga los bloques
+      setIsUpdateMode(false);
       obtenerReportes().then(response => setExistingBlocks(response));
 
     } catch (err: any) {
-      console.error("Error del servidor:", err.response); // Para depurar
+      console.error("Error del servidor:", err.response);
       if (err.response && err.response.data && err.response.data.msg) {
         setError(err.response.data.msg);
       } else {
@@ -351,179 +257,240 @@ export const FormularioEnvio: React.FC = () => {
       setLoading(false);
     }
   };
-  // VISTA 1: El usuario NO ha seleccionado un bloque
+
+  // RENDERIZADO DE VISTA 1: SELECCIÓN
+
   if (!selectedBlock) {
     return (
-      <div>
-        <h2>Paso 1: Seleccione o Cree un Bloque</h2>
-        {isLoadingBlocks && <p>Cargando bloques existentes...</p>}
-        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+      // 1. ELIMINAMOS centrado (flex items-center justify-center)
+      //    Y mantenemos el padding y el min-height
+      <div className="min-h-screen bg-white">
 
-        <div style={{ marginBottom: '2rem' }}>
-          <label htmlFor="select-bloque">Seleccionar Bloque Existente:</label>
-          <select id="select-bloque" onChange={handleBlockSelect} defaultValue="">
-            <option value="" disabled>-- Elija un bloque --</option>
-            {existingBlocks.map((bloque) => (
-              <option key={bloque._id} value={`${bloque.departamento}|${bloque.nombreCliente}`}>
-                {bloque.departamento} / {bloque.nombreCliente} ({bloque.reportes.length} reportes)
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* 2. ELIMINAMOS max-w-md y mx-auto para que ocupe todo el ancho */}
+        <Card className="w-full max-w-full shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center text-slate-800">Gestión de Reportes</CardTitle>
+            <CardDescription className="text-center">Seleccione o cree un bloque de trabajo</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
 
-        <hr />
-
-        <div>
-          <h3>...O Crear un Nuevo Bloque:</h3>
-          <form onSubmit={handleCreateNewBlock}>
-            <div>
-              <label htmlFor="departamento">Lugar / Departamento:</label>
-              <input id="departamento" type="text" required />
+            {/* Selector */}
+            <div className="space-y-2">
+              <Label>Seleccionar Bloque Existente</Label>
+              {/* NOTE: Select uses max-w-full by default inside a Card */}
+              <Select onValueChange={(val:any) => {
+                const [dep, nom] = val.split('|');
+                setSelectedBlock({ departamento: dep, nombreCliente: nom });
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingBlocks ? "Cargando..." : "Seleccione un bloque"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {existingBlocks.map((bloque) => (
+                    <SelectItem key={bloque._id} value={`${bloque.departamento}|${bloque.nombreCliente}`}>
+                      <span className="font-medium">{bloque.nombreCliente}</span>
+                      <span className="text-xs text-slate-500 ml-2">({bloque.departamento})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label htmlFor="nombreCliente">Cliente / Clínica:</label>
-              <input id="nombreCliente" type="text" required />
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500">O crear nuevo</span></div>
             </div>
-            <button type="submit" style={{ marginTop: '1rem' }}>
-              Continuar
-            </button>
-          </form>
-        </div>
+
+            {/* Formulario Crear Nuevo */}
+            <form onSubmit={handleCreateNewBlock} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="departamento">Lugar / Departamento</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                  <Input id="departamento" className="pl-8" placeholder="Ej: Lima" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nombreCliente">Cliente / Clínica</Label>
+                <div className="relative">
+                  <User className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                  <Input id="nombreCliente" className="pl-8" placeholder="Ej: Clínica San Pablo" required />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Crear y Continuar
+              </Button>
+            </form>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // VISTA 2: El usuario YA seleccionó un bloque
+  // --- RENDERIZADO DE VISTA 2: FORMULARIO ---
   return (
-    <div>
-      <div style={{ background: '#eee', padding: '1rem', borderRadius: '8px' }}>
-        <h4>Añadiendo reporte a:</h4>
-        <h3>{selectedBlock.departamento} / {selectedBlock.nombreCliente}</h3>
-        <button type-="button" onClick={changeBlock}>
-          (Cambiar Bloque)
-        </button>
-      </div>
+    <div className="min-h-screen bg-white-50 flex flex-col items-center">
+      <Card className="w-full max-w-md shadow-lg mb-6">
 
-      <h2 style={{ marginTop: '2rem' }}>Paso 2: Añadir Nuevo Reporte</h2>
-
-      {/* Este es tu formulario original, pero sin los campos de bloque */}
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="codigoEquipo">Código de Equipo:</label>
-          <input
-            id="codigoEquipo"
-            type="text"
-            value={codigoEquipo}
-            onChange={handleCodigoEquipoChange}
-            //onChange={(e) => handleInputChange(e, setCodigoEquipo)}
-            required
-          />
-          {/* Ayuda visual para el usuario */}
-          {isUpdateMode && (
-            <>
-              <br />
-              <small style={{ color: 'green' }}>
-                Añadiendo imágenes a un equipo existente.
-              </small>
-              <br />
-            </>
-          )}
-        </div>
-        <div>
-          <label htmlFor="metrologo">Metrólogo:</label>
-          <br />
-          <input
-            id="metrologo"
-            type="text"
-            value={metrologo}
-            onChange={(e) => handleInputChange(e, setMetrologo)}
-            required
-            disabled={isUpdateMode} // <-- ¡CAMBIO! Deshabilita en modo update
-            style={{ background: isUpdateMode ? '#f0f0f0' : '#fff' }} // Estilo visual
-          />
-        </div>
-
-        {/* imagenes galeria y camera y compresion */}
-        <div>
-          <label>Imágenes del Equipo:</label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-            {/* --- Botón 1: TOMAR FOTO --- */}
-            {/* Usamos un <label> que parece un botón */}
-            <label
-              htmlFor="input-camera"
-              style={{
-                padding: '10px 15px', background: '#007bff', color: 'white', borderRadius: '5px', cursor: 'pointer', opacity: isCompressing ? 0.5 : 1,
-                pointerEvents: isCompressing ? 'none' : 'auto'
-              }}
-            >
-              Tomar Foto(s)
-            </label>
-            <input
-              id="input-camera"
-              type="file"
-              onChange={handleFileChange} // Llama a la MISMA función
-              accept="image/*"
-              multiple
-              capture="environment"
-              style={{ display: 'none' }} // El input real está oculto
-              disabled={isCompressing}
-            />
-
-            {/* --- Botón 2: SUBIR DE GALERÍA --- */}
-            <label
-              htmlFor="input-gallery"
-              style={{
-                padding: '10px 15px', background: '#6c757d', color: 'white', borderRadius: '5px', cursor: 'pointer', opacity: isCompressing ? 0.5 : 1,
-                pointerEvents: isCompressing ? 'none' : 'auto'
-              }}
-            >
-              Subir de Galería
-            </label>
-            <input
-              id="input-gallery"
-              type="file"
-              onChange={handleFileChange} // Llama a la MISMA función
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }} // El input real está oculto
-              disabled={isCompressing}
-            />
+        {/* Cabecera del Bloque */}
+        <CardHeader className="bg-stone-50 border-b pb-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardDescription>Trabajando en:</CardDescription>
+              <CardTitle className="text-lg text-slate-800">{selectedBlock.nombreCliente}</CardTitle>
+              <p className="text-sm text-slate-500 flex items-center mt-1"><MapPin className="w-3 h-3 mr-1" /> {selectedBlock.departamento}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={changeBlock} className="text-xs h-8">
+              Cambiar
+            </Button>
           </div>
-          {isCompressing && <p style={{ color: 'blue', fontWeight: 'bold' }}>Comprimiendo imágenes...</p>}
-        </div>
+        </CardHeader>
 
-        {/* Previsualización de imágenes */}
-        {imagenesPreview.length > 0 && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-            gap: '1rem',
-            marginTop: '1rem'
-          }}>
-            {imagenesPreview.map((preview, index) => (
-              <div key={preview} style={{ position: 'relative' }}>
-                <img
-                  src={preview}
-                  alt={`Preview ${index + 1}`}
-                  style={{ width: '100%', height: '150px', objectFit: 'cover' }}
+        <CardContent className="pt-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            {isUpdateMode ? <UploadCloud className="mr-2 h-5 w-5 text-blue-600" /> : <CheckCircle2 className="mr-2 h-5 w-5 text-green-600" />}
+            {isUpdateMode ? 'Añadir Imágenes' : 'Nuevo Reporte'}
+          </h3>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Código de Equipo */}
+            <div className="space-y-2">
+              <Label htmlFor="codigoEquipo">Código de Equipo</Label>
+              <div className="relative">
+                <Input
+                  id="codigoEquipo"
+                  value={codigoEquipo}
+                  onChange={handleCodigoEquipoChange}
+                  placeholder="Ej: 2121"
+                  required
                 />
-                <button type="button" onClick={() => removeImage(index)} style={{ /* ...tus estilos... */ }}>×</button>
               </div>
-            ))}
-          </div>
-        )}
-        <button
-          type="submit"
-          disabled={loading || imagenesPreview.length === 0}
-          style={{ marginTop: '1rem' }}
-        >
-          {loading ? 'Enviando...' : 'Añadir Reporte al Bloque'}
-        </button>
+              {isUpdateMode && (
+                <Alert className="bg-blue-50 border-blue-200 py-2">
+                  <AlertDescription className="text-blue-700 text-xs flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> Equipo existente. Modo actualización activado.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
 
-        {/* Mensajes de estado */}
-        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-        {success && <p style={{ color: 'green' }}>{success}</p>}
-      </form>
+            {/* Metrólogo */}
+            <div className="space-y-2">
+              <Label htmlFor="metrologo">Metrólogo</Label>
+              <Input
+                id="metrologo"
+                value={metrologo}
+                onChange={(e:any) => handleInputChange(e, setMetrologo)}
+                required
+                disabled={isUpdateMode}
+                className={isUpdateMode ? "bg-slate-100" : ""}
+                placeholder="Ej: RV, Renzo Vera, etc."
+              />
+            </div>
+
+            <Separator />
+
+            {/* Botones de Carga */}
+            <div className="space-y-3">
+              <Label>Fotografías del Equipo</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col gap-2 border-dashed border-2 hover:border-solid hover:bg-blue-50 hover:text-blue-600 hover:border-blue-500 transition-all"
+                  onClick={() => document.getElementById('input-camera')?.click()}
+                  disabled={isCompressing}
+                >
+                  <Camera className="h-6 w-6" />
+                  <span className="text-xs">Tomar Foto</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col gap-2 border-dashed border-2 hover:border-solid hover:bg-blue-50 hover:text-blue-600 hover:border-blue-500 transition-all"
+                  onClick={() => document.getElementById('input-gallery')?.click()}
+                  disabled={isCompressing}
+                >
+                  <ImageIcon className="h-6 w-6" />
+                  <span className="text-xs">Galería</span>
+                </Button>
+
+                {/* Inputs Ocultos */}
+                <input id="input-camera" type="file" className="hidden" accept="image/*" multiple capture="environment" onChange={handleFileChange} disabled={isCompressing} />
+                <input id="input-gallery" type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} disabled={isCompressing} />
+              </div>
+
+              {isCompressing && (
+                <div className="flex items-center justify-center text-sm text-blue-600 animate-pulse">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Comprimiendo imágenes...
+                </div>
+              )}
+            </div>
+
+            {/* Previsualización Grid */}
+            {imagenesPreview.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {imagenesPreview.map((preview, index) => (
+                  <div key={preview} className="relative group aspect-square rounded-md overflow-hidden border shadow-sm">
+                    <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={loading || isCompressing || imagenesPreview.length === 0}>
+              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UploadCloud className="mr-2 h-5 w-5" />}
+              {loading ? 'Procesando...' : (isUpdateMode ? 'Guardar Imágenes' : 'Guardar Reporte')}
+            </Button>
+          </form>
+        </CardContent>
+
+        {/* Footer con Mensajes */}
+        {(success || error) && (
+          <CardFooter className="flex flex-col gap-2 bg-slate-50 rounded-b-lg">
+            {success && (
+              <Alert className="border-green-500 bg-green-50 text-green-900">
+                <CheckCircle2 className="h-4 w-4 !text-green-600" />
+                <AlertTitle>¡Éxito!</AlertTitle>
+                <AlertDescription>{success}</AlertDescription>
+                <button onClick={() => setSuccess(null)} className="absolute right-4 top-4"><X className="h-4 w-4 text-green-700" /></button>
+              </Alert>
+            )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+                <button onClick={() => setError(null)} className="absolute right-4 top-4"><X className="h-4 w-4" /></button>
+              </Alert>
+            )}
+          </CardFooter>
+        )}
+      </Card>
     </div>
   );
 };

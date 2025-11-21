@@ -40,3 +40,20 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Aplica solo a los links del nav */
+.App-header nav a {
+  background: linear-gradient(90deg, #2751a0, #b00e2e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  font-weight: bold;
+  text-decoration: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Efecto hover */
+.App-header nav a:hover {
+  opacity: 0.75;
+}
+

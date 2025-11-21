@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react';
 // Importa las funciones y las NUEVAS interfaces desde tu api.ts
-import { obtenerReportes, type IBloque} from '../services/api';
+import { obtenerReportes, type IBloque, type IReporteIndividual } from '../services/api';
 
-// (La interfaz 'Reporte' local ya no es necesaria, usamos las de api.ts)
+// --- UI IMPORTS (SHADCN & LUCIDE) ---
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import {
+  Download,
+  Search,
+  MapPin,
+  User,
+  Calendar,
+  Loader2,
+  X
+} from "lucide-react";
+
 
 export const ListadoReportes: React.FC = () => {
   // 1. El estado principal ahora almacena Bloques, no Reportes
   const [bloques, setBloques] = useState<IBloque[]>([]);
   const [filtroMetrologo, setFiltroMetrologo] = useState('');
-  const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({}); // La clave será el bloque._id
+  const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +35,7 @@ export const ListadoReportes: React.FC = () => {
   const cargarBloques = async () => {
     try {
       setLoading(true);
-      const data = await obtenerReportes(); // Esto devuelve IBloque[]
+      const data = await obtenerReportes();
       setBloques(data);
       setError(null);
     } catch (err) {
@@ -32,29 +48,25 @@ export const ListadoReportes: React.FC = () => {
   // 2. NUEVA FUNCIÓN DE DESCARGA (por Bloque)
   const handleDownloadBloque = async (bloque: IBloque) => {
     setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Iniciando...' }));
-    
+
     try {
       const hasDirPicker = typeof (globalThis as any).showDirectoryPicker === 'function';
 
+      // ... (Toda la lógica de descarga con FileSystemAccess y Fallback se mantiene INTACTA) ...
+
       if (hasDirPicker) {
-        // --- MÉTODO MODERNO (con carpetas y subcarpetas) ---
         // @ts-ignore
         const rootHandle: FileSystemDirectoryHandle = await (globalThis as any).showDirectoryPicker();
-        
-        // 1. Crear carpeta padre (Cliente)
         const parentDir = await rootHandle.getDirectoryHandle(bloque.nombreCliente, { create: true });
 
-        // 2. Iterar sobre cada REPORTE dentro del bloque
         let reporteIdx = 0;
         for (const reporte of bloque.reportes) {
           reporteIdx++;
           setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Procesando reporte ${reporteIdx}/${bloque.reportes.length}` }));
 
-          // 3. Crear subcarpeta (Metrólogo_Codigo)
           const reportFolderName = `${reporte.metrologo}_${reporte.codigoEquipo}`;
           const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
 
-          // 4. Iterar sobre cada IMAGEN y guardarla en la subcarpeta
           let imgIdx = 0;
           for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
@@ -73,7 +85,7 @@ export const ListadoReportes: React.FC = () => {
         setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Completado' }));
 
       } else {
-        // --- MÉTODO FALLBACK (Descargas individuales con nombres claros) ---
+        // Fallback (Descargas individuales)
         setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Iniciando descargas individuales...' }));
         let totalImages = 0;
         bloque.reportes.forEach(r => totalImages += r.imagenesEquipo.length);
@@ -85,18 +97,17 @@ export const ListadoReportes: React.FC = () => {
             imgIdx++;
             currentImage++;
             setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Descargando ${currentImage}/${totalImages}` }));
-            
-            // Crear un nombre de archivo descriptivo
+
             const extGuess = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
             const fileName = `${bloque.nombreCliente}_${reporte.metrologo}_${reporte.codigoEquipo}_${imgIdx}.${extGuess}`;
-            
+
             const a = document.createElement('a');
             a.href = imagen.url;
-            a.download = fileName; // El nombre de archivo ahora incluye el cliente y metrólogo
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             a.remove();
-            await new Promise(r => setTimeout(r, 300)); // Pausa más larga
+            await new Promise(r => setTimeout(r, 300));
           }
         }
         setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Completado (descargas individuales)' }));
@@ -109,142 +120,166 @@ export const ListadoReportes: React.FC = () => {
     }
   };
 
+
   // 3. LÓGICA DE FILTRADO (Ahora filtra los reportes DENTRO de cada bloque)
   const bloquesFiltrados = bloques
     .map(bloque => {
-      // Si no hay filtro, devuelve el bloque tal cual
       if (filtroMetrologo === '') {
         return bloque;
       }
-      
-      // Si hay filtro, filtra los reportes internos
-      const reportesCoincidentes = bloque.reportes.filter(reporte =>
+
+      const reportesCoincidentes = bloque.reportes.filter((reporte: IReporteIndividual) => // Aquí le damos el tipo al reporte
         reporte.metrologo.toLowerCase().includes(filtroMetrologo.toLowerCase())
       );
 
-      // Si se encontraron reportes, devuelve el bloque CON SOLO esos reportes
       if (reportesCoincidentes.length > 0) {
-        return { ...bloque, reportes: reportesCoincidentes };
+        // Ordenamos los reportes coincidentes por fecha
+        const reportesOrdenados = reportesCoincidentes.sort((a, b) =>
+          new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+        );
+        return { ...bloque, reportes: reportesOrdenados };
       }
-      
-      // Si ningún reporte coincide, este bloque no se mostrará
+
       return null;
     })
-    .filter((bloque): bloque is IBloque => bloque !== null); // Elimina los bloques nulos
+    .filter((bloque): bloque is IBloque => bloque !== null);
 
 
-  // 4. RENDERIZADO (Ahora itera sobre bloques, y LUEGO sobre reportes)
+  // 4. RENDERIZADO 
   return (
-    <div className="listado-reportes" style={{ padding: '20px' }}>
-      <h2>Listado de Reportes por Cliente</h2>
-      
-      <div style={{ marginBottom: '20px' }}>
-        <label htmlFor="filtroMetrologo" style={{ marginRight: '10px' }}>
-          Buscar por Metrólogo:
-        </label>
-        <input
-          id="filtroMetrologo"
-          type="text"
-          value={filtroMetrologo}
-          onChange={(e) => setFiltroMetrologo(e.target.value)}
-          placeholder="Ingrese nombre del metrólogo"
-          style={{ padding: '5px' }}
-        />
-      </div>
+    <div className="min-h-screen  bg-white-50">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6">Panel de Reportes</h2>
 
-      {loading && <p>Cargando reportes...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      
-      {!loading && !error && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-          
-          {/* --- BUCLE EXTERNO (POR BLOQUE) --- */}
-          {bloquesFiltrados.map(bloque => (
-            <div 
-              key={bloque._id}
-              style={{
-                border: '1px solid #005A9C', // Borde más oscuro para el bloque
-                borderRadius: '8px',
-                padding: '15px',
-                backgroundColor: '#f9f9f9'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ marginTop: 0, color: '#003366' }}>{bloque.nombreCliente}</h3>
-                  <p style={{ marginTop: '-10px' }}><strong>Ubicación:</strong> {bloque.departamento}</p>
-                </div>
-                {/* BOTÓN DE DESCARGA POR BLOQUE */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadBloque(bloque)}
-                    disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
-                  >
-                    {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? 'Descargando...' : `Descargar todo (${bloque.reportes.length} reportes)`}
-                  </button>
-                  {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' && (
-                    <small style={{ display: 'block' }}>{downloadStatus[bloque._id]}</small>
-                  )}
-                </div>
-              </div>
-              
-              <hr />
-
-              {/* --- BUCLE INTERNO (POR REPORTE INDIVIDUAL) --- */}
-              <div style={{ 
-                display: 'grid', 
-                gap: '20px',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-              }}>
-                {bloque.reportes.map(reporte => (
-                  <div 
-                    key={reporte._id} // Usamos el _id del reporte individual
-                    style={{
-                      border: '1px solid #ddd',
-                      borderRadius: '8px',
-                      padding: '15px',
-                      backgroundColor: '#fff',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    <h4 style={{ marginTop: 0 }}>Equipo: {reporte.codigoEquipo}</h4>
-                    <p><strong>Metrólogo:</strong> {reporte.metrologo}</p>
-                    <p><strong>Fecha:</strong> {new Date(reporte.fecha).toLocaleDateString()}</p>
-                    
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', // Imágenes más pequeñas
-                      gap: '10px',
-                      marginTop: '10px'
-                    }}>
-                      {reporte.imagenesEquipo.map((imagen, index) => (
-                        <button
-                          key={imagen.public_id}
-                          type="button"
-                          onClick={() => window.open(imagen.url, '_blank')}
-                          aria-label={`Abrir imagen ${index + 1} del equipo ${reporte.codigoEquipo}`}
-                          style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
-                        >
-                          <img
-                            src={imagen.url}
-                            alt={`Imagen ${index + 1} del equipo ${reporte.codigoEquipo}`}
-                            style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px' }}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                    {/* El botón de descarga individual ya no está aquí */}
-                  </div>
-                ))}
-              </div>
+      {/* Sección de Filtro */}
+      <Card className="mb-6 shadow-sm">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-500" />
+              <Label htmlFor="filtroMetrologo" className="whitespace-nowrap">
+                Buscar por Metrólogo:
+              </Label>
             </div>
+
+            <Input
+              id="filtroMetrologo"
+              type="text"
+              value={filtroMetrologo}
+              onChange={(e) => setFiltroMetrologo(e.target.value)}
+              placeholder="Escribe el nombre aquí"
+              className="w-full"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+
+      {loading && <p className="flex items-center text-blue-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando reportes...</p>}
+      {error && <p className="text-red-500 flex items-center"><AlertCircle className="mr-2 h-4 w-4" />{error}</p>}
+
+      {!loading && !error && (
+        <div className="flex flex-col gap-8">
+
+          {/* --- BUCLE EXTERNO (POR BLOQUE: Cliente/Clínica) --- */}
+          {bloquesFiltrados.map(bloque => (
+            <Card
+              key={bloque._id}
+              className="shadow-lg border-sonte-200">
+              <CardHeader className="bg-stone-50/50 border-b p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-sky-800 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CardTitle className="text-lg sm:text-xl text-sky-800">{bloque.nombreCliente}</CardTitle>
+                        <span className="text-gray-400">•</span>
+                        <CardDescription className="text-xs sm:text-sm text-gray-600 m-0">
+                          {bloque.departamento}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BOTÓN DE DESCARGA POR BLOQUE */}
+                  <div className="flex flex-col gap-1 w-full sm:w-auto">
+                    <Button
+                      size="sm"
+                      onClick={() => handleDownloadBloque(bloque)}
+                      disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
+                      className="bg-sky-700 hover:bg-blue-700 text-white w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
+                    >
+                      {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? (
+                        <>
+                          <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                          <span className="truncate">{downloadStatus[bloque._id].includes('Procesando') ? 'Procesando...' : 'Descargando'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden sm:inline">Descargar todo ({bloque.reportes.length})</span>
+                          <span className="sm:hidden">Descargar ({bloque.reportes.length})</span>
+                        </>
+                      )}
+                    </Button>
+                    {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' && (
+                      <small className="text-xs text-blue-600 text-center sm:text-left truncate">{downloadStatus[bloque._id]}</small>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-4">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+
+                  {/* --- BUCLE INTERNO (POR REPORTE INDIVIDUAL) --- */}
+                  {bloque.reportes.map((reporte: IReporteIndividual) => (
+                    <Card
+                      key={reporte._id}
+                      className="border-gray-200 hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <Badge className="bg-emerald-500 hover:bg-green-600">Equipo: {reporte.codigoEquipo}</Badge>
+                          <p className="text-xs text-gray-500 flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <p className="text-sm text-gray-700 font-medium flex items-center">
+                          <User className="h-3 w-3 mr-1" /> {reporte.metrologo}
+                        </p>
+
+                        <Separator className="my-2" />
+
+                        {/* Thumbs de Imágenes */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {reporte.imagenesEquipo.map((imagen, index) => (
+                            <Button
+                              key={imagen.public_id}
+                              variant="ghost"
+                              onClick={() => window.open(imagen.url, '_blank')}
+                              className="h-auto p-0 rounded-md overflow-hidden"
+                            >
+                              <img
+                                src={imagen.url}
+                                alt={`Img ${index + 1}`}
+                                className="w-full h-16 object-cover transition-opacity hover:opacity-75"
+                              />
+                            </Button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
 
+      {/* Mensaje de Sin Resultados */}
       {!loading && !error && bloquesFiltrados.length === 0 && (
-        <p>No se encontraron bloques {filtroMetrologo && 'con reportes para el metrólogo especificado'}.</p>
+        <p className="text-gray-500 mt-8">No se encontraron bloques {filtroMetrologo && 'con reportes para el metrólogo especificado'}.</p>
       )}
     </div>
   );
