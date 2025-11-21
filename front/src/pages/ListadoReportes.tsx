@@ -16,7 +16,7 @@ import {
   User,
   Calendar,
   Loader2,
-  X
+  AlertCircle
 } from "lucide-react";
 
 

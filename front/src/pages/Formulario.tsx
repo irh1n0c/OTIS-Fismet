@@ -26,8 +26,7 @@ import {
   X,
   UploadCloud,
   MapPin,
-  User,
-  Hash
+  User
 } from "lucide-react";
 
 // --- INTERFACES ---
@@ -295,7 +294,6 @@ export const FormularioEnvio: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500">O crear nuevo</span></div>
@@ -353,15 +351,10 @@ export const FormularioEnvio: React.FC = () => {
             <Button variant="outline" size="sm" onClick={changeBlock} className="text-xs h-8">
               Cambiar
             </Button>
-          </div>
+            </div>
         </CardHeader>
 
         <CardContent className="pt-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            {isUpdateMode ? <UploadCloud className="mr-2 h-5 w-5 text-blue-600" /> : <CheckCircle2 className="mr-2 h-5 w-5 text-green-600" />}
-            {isUpdateMode ? 'Añadir Imágenes' : 'Nuevo Reporte'}
-          </h3>
-
           <form onSubmit={handleSubmit} className="space-y-5">
 
             {/* Código de Equipo */}
