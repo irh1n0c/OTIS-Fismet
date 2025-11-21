@@ -6,13 +6,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     
-    /* --- INICIO DE LA SOLUCIÓN: ALIAS DE RUTA --- */
-    "baseUrl": ".", 
+    /* Ajuste para despliegues: usar `src` como base y mapear `@/*` => `*` */
+    "baseUrl": "src",
     "paths": {
-      
-      "@/*": ["./src/*"] 
+      "@/*": ["*"]
     },
-    /* --- FIN DE LA SOLUCIÓN --- */
 
     "types": ["vite/client"],
     "skipLibCheck": true,
@@ -31,5 +29,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "scripts": {
+    "install-and-build": "npm install && npm run build"
+  }
 }
