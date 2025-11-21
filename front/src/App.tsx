@@ -20,7 +20,7 @@ function App() {
             <ul className="flex flex-col sm:flex-row justify-center sm:space-x-6 space-y-2 sm:space-y-0">
               
               <li className="w-full sm:w-auto">
-                <Button asChild variant="ghost" className="w-full text-base text-blue-600 hover:bg-blue-50/50">
+                <Button asChild variant="ghost" className="w-full text-base text-cyan-900 hover:bg-blue-50/50">
                   <Link to="/">
                     <FileText className="mr-2 h-4 w-4" />
                     Nuevo Reporte
