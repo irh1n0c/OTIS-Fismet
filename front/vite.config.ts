@@ -14,7 +14,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Define que '@/...' es igual a 'ruta-absoluta-a-la-carpeta-src'
-      "@": path.resolve(__dirname, "./src"),
+       "@": path.resolve(__dirname, "src"),
     },
   },
   // --- FIN DE BLOQUE RESOLVE ---
