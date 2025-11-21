@@ -51,6 +51,6 @@ const BloqueSchema = new mongoose.Schema({
 });
 
 // Aseguramos que la combinación de departamento y clínica sea única
-BloqueSchema.index({ departamento: 1, clinica: 1 }, { unique: true });
+//BloqueSchema.index({ departamento: 1, clinica: 1 }, { /unique: true });
 BloqueSchema.index({ "reportes.codigoEquipo": 1 }, { unique: true, sparse: true });
 module.exports = mongoose.model('Bloque', BloqueSchema);
