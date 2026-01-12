@@ -16,7 +16,9 @@ import {
   User,
   Calendar,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 
@@ -27,6 +29,8 @@ export const ListadoReportes: React.FC = () => {
   const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expandedReports, setExpandedReports] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     cargarBloques();
@@ -178,7 +182,7 @@ export const ListadoReportes: React.FC = () => {
       {error && <p className="text-red-500 flex items-center"><AlertCircle className="mr-2 h-4 w-4" />{error}</p>}
 
       {!loading && !error && (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-3">
 
           {/* --- BUCLE EXTERNO (POR BLOQUE: Cliente/Clínica) --- */}
           {bloquesFiltrados.map(bloque => (
@@ -202,6 +206,24 @@ export const ListadoReportes: React.FC = () => {
 
                   {/* BOTÓN DE DESCARGA POR BLOQUE */}
                   <div className="flex flex-col gap-1 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setExpanded(prev => ({ ...prev, [bloque._id]: !prev[bloque._id] }))}
+                        className="text-xs sm:text-sm whitespace-nowrap mr-2"
+                      >
+                        {expanded[bloque._id] ? (
+                          <>
+                            <ChevronUp className="mr-1 h-3 w-3" /> Ocultar Bloque
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="mr-1 h-3 w-3" /> Desplegar Bloque
+                          </>
+                        )}
+                      </Button>
+                    </div>
                     <Button
                       size="sm"
                       onClick={() => handleDownloadBloque(bloque)}
@@ -228,50 +250,71 @@ export const ListadoReportes: React.FC = () => {
                 </div>
               </CardHeader>
 
-              <CardContent className="p-4">
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {expanded[bloque._id] && (
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {bloque.reportes.map((reporte: IReporteIndividual) => (
+                      <Card key={reporte._id} className="border-gray-200 hover:shadow-md transition-shadow">
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="bg-pink-500 hover:bg-green-600 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
+                              <p className="text-xs text-gray-500 flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
+                              </p>
+                            </div>
 
-                  {/* --- BUCLE INTERNO (POR REPORTE INDIVIDUAL) --- */}
-                  {bloque.reportes.map((reporte: IReporteIndividual) => (
-                    <Card
-                      key={reporte._id}
-                      className="border-gray-200 hover:shadow-md transition-shadow"
-                    >
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                          <Badge className="bg-emerald-500 hover:bg-green-600">Equipo: {reporte.codigoEquipo}</Badge>
-                          <p className="text-xs text-gray-500 flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
+                            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                              <div className="text-xs text-gray-600">Imágenes: {reporte.imagenesEquipo.length}</div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setExpandedReports(prev => ({ ...prev, [reporte._id]: !prev[reporte._id] }))}
+                                className="text-xs"
+                              >
+                                {expandedReports[reporte._id] ? (
+                                  <>
+                                    <ChevronUp className="mr-1 h-3 w-3" /> Ocultar Imágenes
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="mr-1 h-3 w-3" /> Ver Imágenes
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+
+                          <p className="text-sm text-gray-700 font-medium flex items-center">
+                            <User className="h-3 w-3 mr-1" /> {reporte.metrologo}
                           </p>
-                        </div>
-                        <p className="text-sm text-gray-700 font-medium flex items-center">
-                          <User className="h-3 w-3 mr-1" /> {reporte.metrologo}
-                        </p>
 
-                        <Separator className="my-2" />
+                          <Separator className="my-2" />
 
-                        {/* Thumbs de Imágenes */}
-                        <div className="grid grid-cols-3 gap-2">
-                          {reporte.imagenesEquipo.map((imagen, index) => (
-                            <Button
-                              key={imagen.public_id}
-                              variant="ghost"
-                              onClick={() => window.open(imagen.url, '_blank')}
-                              className="h-auto p-0 rounded-md overflow-hidden"
-                            >
-                              <img
-                                src={imagen.url}
-                                alt={`Img ${index + 1}`}
-                                className="w-full h-16 object-cover transition-opacity hover:opacity-75"
-                              />
-                            </Button>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
+                          {expandedReports[reporte._id] && (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                              {reporte.imagenesEquipo.map((imagen, index) => (
+                                <Button
+                                  key={imagen.public_id}
+                                  variant="ghost"
+                                  onClick={() => window.open(imagen.url, '_blank')}
+                                  className="h-auto p-0 rounded-md overflow-hidden"
+                                >
+                                  <img
+                                    src={imagen.url}
+                                    alt={`Img ${index + 1}`}
+                                    className="w-full h-20 sm:h-28 md:h-32 object-cover transition-opacity hover:opacity-75"
+                                  />
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>
