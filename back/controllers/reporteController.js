@@ -28,7 +28,7 @@ exports.crearReporte = async (req, res) => {
     }
 
     // 4. Subir cada archivo a R2 y formatear las entradas para el Schema
-    const { uploadToR2 } = await import('../config/r2.js');
+    const { uploadToR2 } = require('../config/r2.js');
     const folder = 'reportes-otis';
     const uploadedUrls = await Promise.all(
       req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
@@ -149,7 +149,7 @@ exports.actualizarImagenesReporte = async (req, res) => {
     }
 
     // 2. Subir las nuevas imágenes a R2 y formatear para guardar
-    const { uploadToR2 } = await import('../config/r2.js');
+    const { uploadToR2 } = require('../config/r2.js');
     const folder = 'reportes-otis';
     const uploadedUrls = await Promise.all(
       req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
