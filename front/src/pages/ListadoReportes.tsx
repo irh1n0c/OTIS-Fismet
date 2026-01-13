@@ -211,7 +211,8 @@ export const ListadoReportes: React.FC = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => setExpanded(prev => ({ ...prev, [bloque._id]: !prev[bloque._id] }))}
-                        className="text-xs sm:text-sm whitespace-nowrap mr-2"
+                        className="text-xs sm:text-sm whitespace-nowrap mr-2 bg-green-500 text-white px-3 py-1 rounded-1/2 hover:bg-stone-900 hover:text-white"
+
                       >
                         {expanded[bloque._id] ? (
                           <>
@@ -228,7 +229,7 @@ export const ListadoReportes: React.FC = () => {
                       size="sm"
                       onClick={() => handleDownloadBloque(bloque)}
                       disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
-                      className="bg-sky-700 hover:bg-blue-700 text-white w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
+                      className="bg-white-100 hover:bg-stone-200 text-stone-700 w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
                     >
                       {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? (
                         <>
