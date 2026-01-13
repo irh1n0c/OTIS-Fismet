@@ -39,6 +39,19 @@ const debugResolvedCredentials = async () => {
 // Run once so tests like `node test-r2.js` show credential resolution info
 debugResolvedCredentials();
 
+// Log presence of important env vars (do NOT print secrets)
+console.log('R2 env presence:', {
+  R2_ACCOUNT_ID: !!process.env.R2_ACCOUNT_ID,
+  R2_BUCKET_NAME: !!process.env.R2_BUCKET_NAME,
+  R2_PUBLIC_URL: !!process.env.R2_PUBLIC_URL,
+  R2_ACCESS_KEY_ID: !!process.env.R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY: !!process.env.R2_SECRET_ACCESS_KEY,
+});
+
+if (!process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
+  console.warn('R2 credentials appear missing. In production ensure R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY are defined in your hosting environment variables.');
+}
+
 /**
  * Sube una imagen a R2
  * @param {Buffer} fileBuffer - Buffer del archivo
@@ -47,10 +60,11 @@ debugResolvedCredentials();
  * @returns {Promise<string>} URL pública de la imagen
  */
 const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
+  let uniqueName = undefined;
   try {
     // Generar nombre único
     const baseName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${filename}`;
-    const uniqueName = folder ? `${folder.replace(/\/$/, '')}/${baseName}` : baseName;
+    uniqueName = folder ? `${folder.replace(/\/$/, '')}/${baseName}` : baseName;
     
     const upload = new Upload({
       client: r2Client,
@@ -71,7 +85,7 @@ const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
     // Log full error and metadata to help debugging in production
     console.error('Error subiendo a R2. Params:', {
       Bucket: process.env.R2_BUCKET_NAME,
-      Key: uniqueName,
+      Key: uniqueName || '(not-set)',
       ContentLength: fileBuffer ? fileBuffer.length : undefined,
     });
     console.error('Error detalles:', error && (error.stack || error));
