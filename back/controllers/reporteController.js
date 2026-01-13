@@ -22,15 +22,21 @@ exports.crearReporte = async (req, res) => {
     }
     // --- FIN DE LA VALIDACIÓN ---
 
-    // 3. Los archivos subidos a Cloudinary vienen en 'req.files' (como un array)
+    // 3. Los archivos subidos vienen en 'req.files' (como un array) - ahora en memoria
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ msg: 'No se subieron imágenes.' });
     }
 
-    // 4. Formateamos las imágenes al formato de nuestro Schema
-    const imagenesParaGuardar = req.files.map(file => ({
-      url: file.path,
-      public_id: file.filename
+    // 4. Subir cada archivo a R2 y formatear las entradas para el Schema
+    const { uploadToR2 } = await import('../config/r2.js');
+    const folder = 'reportes-otis';
+    const uploadedUrls = await Promise.all(
+      req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
+    );
+
+    const imagenesParaGuardar = uploadedUrls.map(url => ({
+      url,
+      public_id: url.split('/').pop()
     }));
 
     // 5. Creamos el objeto del nuevo reporte individual
@@ -142,10 +148,16 @@ exports.actualizarImagenesReporte = async (req, res) => {
       return res.status(400).json({ msg: 'No se subieron imágenes.' });
     }
 
-    // 2. Formatear las imágenes (igual que antes)
-    const imagenesParaGuardar = req.files.map(file => ({
-      url: file.path,
-      public_id: file.filename
+    // 2. Subir las nuevas imágenes a R2 y formatear para guardar
+    const { uploadToR2 } = await import('../config/r2.js');
+    const folder = 'reportes-otis';
+    const uploadedUrls = await Promise.all(
+      req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
+    );
+
+    const imagenesParaGuardar = uploadedUrls.map(url => ({
+      url,
+      public_id: url.split('/').pop()
     }));
 
     // 3. ¡La Magia de Mongoose!

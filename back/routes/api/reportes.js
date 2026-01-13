@@ -1,7 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const upload = require('../../config/cloudinary'); 
+const upload = require('../../config/multer'); 
 const { crearReporte, obtenerReportes, actualizarImagenesReporte, crearBloqueVacio } = require('../../controllers/reporteController');
 const multer = require('multer'); 
 
@@ -26,9 +26,7 @@ router.post(
   '/', 
   // 5. MODIFICAMOS CÓMO SE LLAMA A 'upload.array'
   (req, res, next) => {
-    
     upload.array('imagenesEquipo', 10)(req, res, (err) => {
-      
       handleUploadErrors(err, req, res, next);
     });
   },
