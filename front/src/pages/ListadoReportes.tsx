@@ -68,7 +68,7 @@ export const ListadoReportes: React.FC = () => {
           reporteIdx++;
           setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Procesando reporte ${reporteIdx}/${bloque.reportes.length}` }));
 
-          const reportFolderName = `${reporte.metrologo}_${reporte.codigoEquipo}`;
+          const reportFolderName = `${reporte.codigoEquipo}_${reporte.metrologo}`;
           const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
 
           let imgIdx = 0;
@@ -303,6 +303,7 @@ export const ListadoReportes: React.FC = () => {
                                   <img
                                     src={imagen.url}
                                     alt={`Img ${index + 1}`}
+                                    loading="lazy"
                                     className="w-full h-20 sm:h-28 md:h-32 object-cover transition-opacity hover:opacity-75"
                                   />
                                 </Button>
