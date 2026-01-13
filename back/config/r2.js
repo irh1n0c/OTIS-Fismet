@@ -1,7 +1,7 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import dotenv from 'dotenv';
-import { Upload } from '@aws-sdk/lib-storage';
-import crypto from 'crypto';
+const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const dotenv = require('dotenv');
+const { Upload } = require('@aws-sdk/lib-storage');
+const crypto = require('crypto');
 
 // Ensure environment variables from .env are loaded when this module initializes
 dotenv.config();
@@ -46,7 +46,7 @@ debugResolvedCredentials();
  * @param {string} mimetype - Tipo MIME del archivo
  * @returns {Promise<string>} URL pública de la imagen
  */
-export const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
+const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
   try {
     // Generar nombre único
     const baseName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${filename}`;
@@ -77,7 +77,7 @@ export const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') =>
  * Elimina una imagen de R2
  * @param {string} imageUrl - URL completa de la imagen
  */
-export const deleteFromR2 = async (imageUrl) => {
+const deleteFromR2 = async (imageUrl) => {
   try {
     // Extraer el nombre del archivo de la URL
     const key = imageUrl.split('/').pop();
@@ -97,7 +97,7 @@ export const deleteFromR2 = async (imageUrl) => {
 /**
  * Lista todas las imágenes en R2
  */
-export const listR2Images = async () => {
+const listR2Images = async () => {
   try {
     const response = await r2Client.send(new ListObjectsV2Command({
       Bucket: process.env.R2_BUCKET_NAME,
@@ -110,4 +110,4 @@ export const listR2Images = async () => {
   }
 };
 
-export default { uploadToR2, deleteFromR2, listR2Images };
+module.exports = { uploadToR2, deleteFromR2, listR2Images };
