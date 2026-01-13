@@ -35,7 +35,7 @@ interface ISubirReporteResponse {
 
 // --- CLIENTE AXIOS (Correcto como está) ---
 
-const API_URL = import.meta.env.VITE_API_URL || ''; // <-- Esto leerá lo que acabas de poner en Vercel
+export const API_URL = import.meta.env.VITE_API_URL || ''; // <-- Esto leerá lo que acabas de poner en Vercel
 // (Asegúrate de que esta sea la URL exacta que copiaste de Render, SIN barra al final)
 
 const apiClient = axios.create({

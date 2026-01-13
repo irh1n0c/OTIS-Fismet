@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // Importa las funciones y las NUEVAS interfaces desde tu api.ts
-import { obtenerReportes, type IBloque, type IReporteIndividual } from '../services/api';
+import { obtenerReportes, type IBloque, type IReporteIndividual, API_URL } from '../services/api';
 
 // --- UI IMPORTS (SHADCN & LUCIDE) ---
 import { Button } from "@/components/ui/button";
@@ -72,9 +72,12 @@ export const ListadoReportes: React.FC = () => {
           const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
 
           let imgIdx = 0;
-          for (const imagen of reporte.imagenesEquipo) {
+            for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
-            const resp = await fetch(imagen.url);
+            const useProxy = !!API_URL;
+            const imagePath = (() => { try { return new URL(imagen.url).pathname.replace(/^\//, ''); } catch { return imagen.url; } })();
+            const fetchUrl = useProxy ? `${API_URL.replace(/\/$/, '')}/images/proxy?key=${encodeURIComponent(imagePath)}` : imagen.url;
+            const resp = await fetch(fetchUrl);
             if (!resp.ok) throw new Error(`Error al descargar ${imagen.url}`);
             const blob = await resp.blob();
             const ext = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
@@ -97,7 +100,7 @@ export const ListadoReportes: React.FC = () => {
 
         for (const reporte of bloque.reportes) {
           let imgIdx = 0;
-          for (const imagen of reporte.imagenesEquipo) {
+            for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
             currentImage++;
             setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Descargando ${currentImage}/${totalImages}` }));
@@ -105,8 +108,12 @@ export const ListadoReportes: React.FC = () => {
             const extGuess = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
             const fileName = `${bloque.nombreCliente}_${reporte.metrologo}_${reporte.codigoEquipo}_${imgIdx}.${extGuess}`;
 
+            const useProxy = !!API_URL;
+            const imagePath = (() => { try { return new URL(imagen.url).pathname.replace(/^\//, ''); } catch { return imagen.url; } })();
+            const href = useProxy ? `${API_URL.replace(/\/$/, '')}/images/proxy?key=${encodeURIComponent(imagePath)}` : imagen.url;
+
             const a = document.createElement('a');
-            a.href = imagen.url;
+            a.href = href;
             a.download = fileName;
             document.body.appendChild(a);
             a.click();
