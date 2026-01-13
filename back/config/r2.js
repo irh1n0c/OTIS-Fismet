@@ -68,8 +68,17 @@ const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
     const publicUrl = `${process.env.R2_PUBLIC_URL}/${uniqueName}`;
     return publicUrl;
   } catch (error) {
-    console.error('Error subiendo a R2:', error);
-    throw new Error('Error al subir imagen a R2');
+    // Log full error and metadata to help debugging in production
+    console.error('Error subiendo a R2. Params:', {
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: uniqueName,
+      ContentLength: fileBuffer ? fileBuffer.length : undefined,
+    });
+    console.error('Error detalles:', error && (error.stack || error));
+    // If AWS SDK attached metadata, log it too
+    if (error && error.$metadata) console.error('AWS Metadata:', error.$metadata);
+    // Rethrow original error so callers can inspect message/stack
+    throw error;
   }
 };
 
