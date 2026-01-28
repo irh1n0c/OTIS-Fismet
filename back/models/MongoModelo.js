@@ -17,6 +17,10 @@ const ReporteIndividualSchema = new mongoose.Schema({
     trim: true,
     //unique: true 
   },
+  observaciones: {
+    type: String,
+    default: '' 
+  },
   imagenesEquipo: [ 
     {
       url: {

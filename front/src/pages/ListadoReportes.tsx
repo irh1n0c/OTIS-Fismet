@@ -18,8 +18,10 @@ import {
   Loader2,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  FolderHeart
 } from "lucide-react";
+import { LayersIcon } from '@/components/icons/lucide-layers';
 
 
 export const ListadoReportes: React.FC = () => {
@@ -72,7 +74,7 @@ export const ListadoReportes: React.FC = () => {
           const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
 
           let imgIdx = 0;
-            for (const imagen of reporte.imagenesEquipo) {
+          for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
             const useProxy = !!API_URL;
             const imagePath = (() => { try { return new URL(imagen.url).pathname.replace(/^\//, ''); } catch { return imagen.url; } })();
@@ -100,7 +102,7 @@ export const ListadoReportes: React.FC = () => {
 
         for (const reporte of bloque.reportes) {
           let imgIdx = 0;
-            for (const imagen of reporte.imagenesEquipo) {
+          for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
             currentImage++;
             setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Descargando ${currentImage}/${totalImages}` }));
@@ -199,11 +201,11 @@ export const ListadoReportes: React.FC = () => {
               <CardHeader className="bg-stone-50/50 border-b p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-sky-800 flex-shrink-0" />
+                    <LayersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-stone-800 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <CardTitle className="text-lg sm:text-xl text-sky-800">{bloque.nombreCliente}</CardTitle>
-                        <span className="text-gray-400">•</span>
+                        <CardTitle className="text-lg sm:text-xl text-stone-800">{bloque.nombreCliente}</CardTitle>
+                        <span className="text-gray-500">•</span>
                         <CardDescription className="text-xs sm:text-sm text-gray-600 m-0">
                           {bloque.departamento}
                         </CardDescription>
@@ -218,7 +220,7 @@ export const ListadoReportes: React.FC = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => setExpanded(prev => ({ ...prev, [bloque._id]: !prev[bloque._id] }))}
-                        className="text-xs sm:text-sm whitespace-nowrap mr-2 bg-green-500 text-white px-3 py-1 rounded-1/2 hover:bg-stone-900 hover:text-white"
+                        className="text-xs sm:text-sm whitespace-nowrap mr-0 bg-stone-900 text-white px-6 py-4 rounded-1/2 hover:bg-stone-700 hover:text-white"
 
                       >
                         {expanded[bloque._id] ? (
@@ -236,7 +238,7 @@ export const ListadoReportes: React.FC = () => {
                       size="sm"
                       onClick={() => handleDownloadBloque(bloque)}
                       disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
-                      className="bg-white-100 hover:bg-stone-200 text-stone-700 w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
+                      className="bg-white-100 hover:bg-stone-100 text-stone-700 w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
                     >
                       {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? (
                         <>
@@ -266,7 +268,7 @@ export const ListadoReportes: React.FC = () => {
                         <CardContent className="p-3 space-y-2">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className="bg-pink-500 hover:bg-green-600 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
+                              <Badge className="bg-cyan-500 hover:bg-slate-800 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
                               <p className="text-xs text-gray-500 flex items-center">
                                 <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
                               </p>
@@ -298,7 +300,14 @@ export const ListadoReportes: React.FC = () => {
                           </p>
 
                           <Separator className="my-2" />
-
+                          {reporte.observaciones && (
+                            <div className="text-sm text-gray-600 bg-stone-50 border border-stone-200 rounded-md p-2">
+                              <span className="font-semibold text-gray-700">Observaciones:</span>
+                              <p className="mt-1 whitespace-pre-line">
+                                {reporte.observaciones}
+                              </p>
+                            </div>
+                          )}
                           {expandedReports[reporte._id] && (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                               {reporte.imagenesEquipo.map((imagen, index) => (

@@ -7,21 +7,17 @@ const Bloque = require('../models/MongoModelo');
  */
 exports.crearReporte = async (req, res) => {
   try {
-    // 1. Los datos de texto vienen en 'req.body'
-    const { departamento, nombreCliente, metrologo, codigoEquipo } = req.body;
-
-    // --- ¡NUEVO! VALIDACIÓN PROACTIVA ---
+    console.log("BODY COMPLETO:", req.body);
+    console.log("OBSERVACIONES:", req.body.observaciones);
+    const { departamento, nombreCliente, metrologo, codigoEquipo, observaciones } = req.body;
     // 2. Verificamos si este codigoEquipo ya existe en CUALQUIER bloque
     const reporteExistente = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
 
     if (reporteExistente) {
-      // Si existe, detenemos todo y enviamos un error claro
       return res.status(400).json({
         msg: `Error: El código de equipo '${codigoEquipo}' ya existe en el bloque del cliente '${reporteExistente.nombreCliente}'.`
       });
     }
-    // --- FIN DE LA VALIDACIÓN ---
-
     // 3. Los archivos subidos vienen en 'req.files' (como un array) - ahora en memoria
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ msg: 'No se subieron imágenes.' });
@@ -43,6 +39,7 @@ exports.crearReporte = async (req, res) => {
     const nuevoReporte = {
       metrologo,
       codigoEquipo,
+      observaciones: observaciones || '',
       imagenesEquipo: imagenesParaGuardar
     };
 
@@ -61,8 +58,6 @@ exports.crearReporte = async (req, res) => {
 
   } catch (err) {
     console.error("EL ERROR COMPLETO DEL BACKEND ES:", err);
-
-    // CAPA 2: "RED DE SEGURIDAD" (El policía reactivo)
     // Esto solo se activará si dos usuarios envían el mismo código al mismo tiempo.
     if (err.code === 11000) {
       if (err.keyPattern && err.keyPattern['reportes.codigoEquipo']) {
@@ -159,15 +154,10 @@ exports.actualizarImagenesReporte = async (req, res) => {
       url,
       public_id: url.split('/').pop()
     }));
-
-    // 3. ¡La Magia de Mongoose!
     // Encontramos el Bloque que contiene el reporte con 'codigoEquipo'
     const bloqueActualizado = await Bloque.findOneAndUpdate(
       { "reportes.codigoEquipo": codigoEquipo }, // Filtro: Encuentra el bloque
       {
-        // $push: Añade elementos a un array
-        // "reportes.$.imagenesEquipo": El '$' (operador posicional)
-        // se asegura de añadir las imágenes SÓLO al reporte que coincidió
         $push: {
           "reportes.$.imagenesEquipo": { $each: imagenesParaGuardar }
         }
@@ -198,23 +188,17 @@ exports.actualizarImagenesReporte = async (req, res) => {
 exports.crearBloqueVacio = async (req, res) => {
   try {
     const { departamento, nombreCliente } = req.body;
-
-    // 1. Validar campos
     if (!departamento || !nombreCliente) {
       return res.status(400).json({ msg: 'Departamento y Cliente son obligatorios.' });
     }
-
-    // 2. Verificar si ya existe
     let bloque = await Bloque.findOne({ departamento, nombreCliente });
     
     if (bloque) {
-      // Si ya existe, simplemente lo devolvemos (no es un error fatal, solo avisamos)
       return res.status(200).json({ 
         msg: 'El bloque ya existía. Seleccionado correctamente.', 
         bloque 
       });
     }
-
     // 3. Crear nuevo bloque
     bloque = new Bloque({
       departamento,

@@ -9,6 +9,7 @@ export interface IReporteIndividual {
   fecha: string;
   metrologo: string;
   codigoEquipo: string;
+  observaciones: string;
   imagenesEquipo: Array<{
     url: string;
     public_id: string;
@@ -43,16 +44,6 @@ const apiClient = axios.create({
 });
 
 console.log("API URL configurada:", API_URL);
-// const apiClient = axios.create({
-//   // baseURL (comentada) es correcto para que funcione el proxy de Vite
-// });
-
-
-// --- FUNCIONES DE API (Corregidas) ---
-
-/**
- * Sube un nuevo reporte y lo añade a un bloque.
- */
 export const subirReporte = async (formData: FormData): Promise<ISubirReporteResponse> => {
   // El tipo de respuesta ahora es ISubirReporteResponse
   const response = await apiClient.post<ISubirReporteResponse>('/api/reportes', formData, {
@@ -62,10 +53,6 @@ export const subirReporte = async (formData: FormData): Promise<ISubirReporteRes
   });
   return response.data; // Devuelve { msg: '...', bloque: {...} }
 };
-
-/**
- * Obtiene todos los Bloques de reportes.
- */
 export const obtenerReportes = async (): Promise<IBloque[]> => {
   // Ahora promete y devuelve un array de IBloque[], no Reporte[]
   const response = await apiClient.get<IBloque[]>('/api/reportes');
@@ -77,8 +64,6 @@ export const obtenerReportes = async (): Promise<IBloque[]> => {
  * Añade más imágenes a un reporte existente.
  */
 export const anadirImagenesReporte = async (formData: FormData): Promise<IBloque> => {
-  // Nota: La respuesta del backend devuelve { msg, bloque }
-  // Asumimos que la respuesta de Axios ya extrae 'data'
   const response = await apiClient.patch<{ msg: string, bloque: IBloque }>('/api/reportes/imagenes', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',

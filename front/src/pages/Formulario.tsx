@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import {
   subirReporte,
   obtenerReportes,
@@ -10,6 +11,7 @@ import {
 import imageCompression from 'browser-image-compression';
 
 // --- UI IMPORTS (SHADCN & LUCIDE) ---
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +43,7 @@ export const FormularioEnvio: React.FC = () => {
   const [existingBlocks, setExistingBlocks] = useState<IBloque[]>([]);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
   const [metrologo, setMetrologo] = useState('');
+  const [observaciones, setObservaciones] = useState('');
   const [codigoEquipo, setCodigoEquipo] = useState('');
   const [imagenesPreview, setImagenesPreview] = useState<string[]>([]);
   const [imagenes, setImagenes] = useState<FileList | null>(null);
@@ -146,9 +149,11 @@ export const FormularioEnvio: React.FC = () => {
     if (existingReport) {
       setIsUpdateMode(true);
       setMetrologo(existingReport.metrologo);
+      setObservaciones(existingReport.observaciones || '');
     } else {
       setIsUpdateMode(false);
       setMetrologo('');
+      setObservaciones('');
     }
   };
 
@@ -233,6 +238,7 @@ export const FormularioEnvio: React.FC = () => {
         formData.append('nombreCliente', selectedBlock!.nombreCliente);
         formData.append('metrologo', metrologo);
         formData.append('codigoEquipo', codigoEquipo);
+        formData.append('observaciones', observaciones);
         await subirReporte(formData);
         setSuccess('¡Reporte nuevo creado exitosamente!');
       }
@@ -277,7 +283,7 @@ export const FormularioEnvio: React.FC = () => {
             <div className="space-y-2">
               <Label>Seleccionar Bloque Existente</Label>
               {/* NOTE: Select uses max-w-full by default inside a Card */}
-              <Select onValueChange={(val:any) => {
+              <Select onValueChange={(val: any) => {
                 const [dep, nom] = val.split('|');
                 setSelectedBlock({ departamento: dep, nombreCliente: nom });
               }}>
@@ -351,7 +357,7 @@ export const FormularioEnvio: React.FC = () => {
             <Button variant="outline" size="sm" onClick={changeBlock} className="text-xs h-8">
               Cambiar
             </Button>
-            </div>
+          </div>
         </CardHeader>
 
         <CardContent className="pt-6">
@@ -384,7 +390,7 @@ export const FormularioEnvio: React.FC = () => {
               <Input
                 id="metrologo"
                 value={metrologo}
-                onChange={(e:any) => handleInputChange(e, setMetrologo)}
+                onChange={(e: any) => handleInputChange(e, setMetrologo)}
                 required
                 disabled={isUpdateMode}
                 className={isUpdateMode ? "bg-slate-100" : ""}
@@ -449,6 +455,20 @@ export const FormularioEnvio: React.FC = () => {
                 ))}
               </div>
             )}
+            <Separator />
+            {/* Observaciones */}
+            <div className="space-y-2">
+              <Label htmlFor="observaciones">Observaciones</Label>
+              <Textarea
+                id="observaciones"
+                value={observaciones}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setObservaciones(e.target.value)}
+                placeholder="Ingrese observaciones del equipo, estado, condiciones, etc."
+                rows={4}
+                disabled={isUpdateMode} // opcional
+                className={isUpdateMode ? "bg-slate-100" : ""}
+              />
+            </div>
 
             {/* Submit Button */}
             <Button
