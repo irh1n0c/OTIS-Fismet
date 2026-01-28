@@ -12,14 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Download,
   Search,
-  MapPin,
   User,
   Calendar,
   Loader2,
   AlertCircle,
   ChevronDown,
-  ChevronUp,
-  FolderHeart
+  ChevronUp
 } from "lucide-react";
 import { LayersIcon } from '@/components/icons/lucide-layers';
 
