@@ -2,6 +2,8 @@
 import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import { FormularioEnvio } from './pages/Formulario';
 import { ListadoReportes } from './pages/ListadoReportes';
+import { GestionEquipos } from "./pages/EditarEquipos";
+import { BuscarEquipo } from './pages/BuscarEquipo';
 import './App.css';
 
 import { Separator } from "@/components/ui/separator";
@@ -38,6 +40,16 @@ function App() {
                   </Link>
                 </Button>
               </li>
+              <Separator orientation="vertical" className="hidden sm:block h-8 bg-gray-300" />
+              
+              <li className="w-full sm:w-auto">
+                <Button asChild variant="ghost" className="w-full text-base text-gray-600 hover:bg-gray-50/50">
+                  <Link to="buscar-equipo">
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    Editar un Reporte
+                  </Link>
+                </Button>
+              </li>
             </ul>
           </nav>
         </header>
@@ -47,6 +59,11 @@ function App() {
           <Routes>
             <Route path="/" element={<FormularioEnvio />} />
             <Route path="/reportes" element={<ListadoReportes />} />
+            <Route path="/editar-reportes" element={<GestionEquipos />} />
+            <Route path="/buscar-equipo" element={<BuscarEquipo onFound={(codigoEquipo) => {
+              // Redirigir a la página de edición con el código del equipo como parámetro de consulta
+              window.location.href = `/editar-reportes?codigoEquipo=${encodeURIComponent(codigoEquipo)}`;
+            }} />} />
           </Routes>
         </main>
       </div>

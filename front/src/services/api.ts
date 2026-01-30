@@ -79,3 +79,57 @@ export const crearNuevoBloque = async (departamento: string, nombreCliente: stri
   });
   return response.data.bloque;
 };
+
+/**
+ * Actualiza los campos de un equipo (reporte) existente
+ */
+export const actualizarEquipo = async (
+  bloqueId: string,
+  reporteId: string,
+  datos: Partial<IReporteIndividual>
+): Promise<IBloque> => {
+  const response = await apiClient.patch<{ msg: string, bloque: IBloque }>(
+    `/api/reportes/${bloqueId}/${reporteId}`,
+    datos
+  );
+  return response.data.bloque;
+};
+
+/**
+ * Elimina un equipo (reporte) de la base de datos
+ */
+export const eliminarEquipo = async (
+  bloqueId: string,
+  reporteId: string
+): Promise<IBloque> => {
+  const response = await apiClient.delete<{ msg: string, bloque: IBloque }>(
+    `/api/reportes/${bloqueId}/${reporteId}`
+  );
+  return response.data.bloque;
+};
+
+/**
+ * Obtiene un equipo específico
+ */
+export const obtenerEquipo = async (
+  bloqueId: string,
+  reporteId: string
+): Promise<IReporteIndividual> => {
+  const response = await apiClient.get<{ msg: string, reporte: IReporteIndividual }>(
+    `/api/reportes/${bloqueId}/${reporteId}`
+  );
+  return response.data.reporte;
+};
+
+/**
+ * Busca un equipo por código
+ */
+export const buscarEquipoPorCodigo = async (codigoEquipo: string): Promise<{ bloque: IBloque, reporte: IReporteIndividual }> => {
+  const response = await apiClient.get<{ msg: string, bloque: IBloque, reporte: IReporteIndividual }>(
+    `/api/reportes/buscar/${codigoEquipo}`
+  );
+  return {
+    bloque: response.data.bloque,
+    reporte: response.data.reporte
+  };
+};

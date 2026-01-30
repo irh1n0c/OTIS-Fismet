@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../../config/multer'); 
 const { crearReporte, obtenerReportes, actualizarImagenesReporte, crearBloqueVacio } = require('../../controllers/reporteController');
+const { actualizarEquipo, eliminarEquipo, obtenerEquipo, buscarEquipoPorCodigo } = require('../../controllers/equipoController');
 const multer = require('multer'); 
 
 // 4. CREAMOS UN MANEJADOR DE ERRORES ESPECÍFICO
@@ -36,6 +37,17 @@ router.post(
 
 router.get('/', obtenerReportes);
 
+// ==================== RUTAS DE EQUIPO (CRUD) ====================
+// ⚠️ IMPORTANTE: Las rutas específicas DEBEN IR ANTES que las dinámicas
+
+// @route   GET /api/reportes/buscar/:codigoEquipo
+// @desc    Buscar un equipo por código
+router.get('/buscar/:codigoEquipo', buscarEquipoPorCodigo);
+
+// @route   POST /api/reportes/bloque
+// @desc    Crear un bloque vacío
+router.post('/bloque', crearBloqueVacio);
+
 // @route   PATCH /api/reportes/imagenes
 // @desc    Añadir más imágenes a un reporte existente
 // @access  Public
@@ -45,5 +57,18 @@ router.patch(
   actualizarImagenesReporte // Llama a la nueva función del controlador
 );
 
-router.post('/bloque', crearBloqueVacio);
+// ==================== RUTAS DINÁMICAS (deben ir al final) ====================
+
+// @route   GET /api/reportes/:bloqueId/:reporteId
+// @desc    Obtener un equipo específico
+router.get('/:bloqueId/:reporteId', obtenerEquipo);
+
+// @route   PATCH /api/reportes/:bloqueId/:reporteId
+// @desc    Actualizar un equipo existente
+router.patch('/:bloqueId/:reporteId', actualizarEquipo);
+
+// @route   DELETE /api/reportes/:bloqueId/:reporteId
+// @desc    Eliminar un equipo
+router.delete('/:bloqueId/:reporteId', eliminarEquipo);
+
 module.exports = router;
