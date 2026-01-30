@@ -8,19 +8,19 @@ import './App.css';
 
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { FileText, ListChecks } from "lucide-react"; 
+import { FileText, ListChecks } from "lucide-react";
 
 function App() {
   return (
     <Router>
       <div className="App min-h-screen bg-white-100">
-        
+
         {/* HEADER: ELIMINAMOS max-w-7xl y mx-auto */}
         <header className="sticky top-0 z-50 bg-white shadow-sm py-4">
           {/* La navegación ocupa el 100% del ancho con padding horizontal */}
           <nav className="px-4 sm:px-6 lg:px-8">
             <ul className="flex flex-col sm:flex-row justify-center sm:space-x-6 space-y-2 sm:space-y-0">
-              
+
               <li className="w-full sm:w-auto">
                 <Button asChild variant="ghost" className="w-full text-base text-cyan-900 hover:bg-blue-50/50">
                   <Link to="/">
@@ -29,9 +29,9 @@ function App() {
                   </Link>
                 </Button>
               </li>
-              
+
               <Separator orientation="vertical" className="hidden sm:block h-8 bg-gray-300" />
-              
+
               <li className="w-full sm:w-auto">
                 <Button asChild variant="ghost" className="w-full text-base text-gray-600 hover:bg-gray-50/50">
                   <Link to="/reportes">
@@ -41,7 +41,7 @@ function App() {
                 </Button>
               </li>
               <Separator orientation="vertical" className="hidden sm:block h-8 bg-gray-300" />
-              
+
               <li className="w-full sm:w-auto">
                 <Button asChild variant="ghost" className="w-full text-base text-gray-600 hover:bg-gray-50/50">
                   <Link to="buscar-equipo">
@@ -53,17 +53,17 @@ function App() {
             </ul>
           </nav>
         </header>
-        
+
         {/* MAIN: ELIMINAMOS max-w-7xl y mx-auto */}
         <main className="p-4 sm:p-6 lg:p-8">
           <Routes>
             <Route path="/" element={<FormularioEnvio />} />
             <Route path="/reportes" element={<ListadoReportes />} />
             <Route path="/editar-reportes" element={<GestionEquipos />} />
-            <Route path="/buscar-equipo" element={<BuscarEquipo onFound={(codigoEquipo) => {
-              // Redirigir a la página de edición con el código del equipo como parámetro de consulta
-              window.location.href = `/editar-reportes?codigoEquipo=${encodeURIComponent(codigoEquipo)}`;
-            }} />} />
+            <Route
+              path="/buscar-equipo"
+              element={<BuscarEquipo />}
+            />
           </Routes>
         </main>
       </div>
