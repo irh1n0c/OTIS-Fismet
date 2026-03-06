@@ -269,35 +269,38 @@ export function GestionEquipos() {
           await actualizarEquipo(bloqueData._id, equipoData._id, datosLimpios);
         }
 
-        // Eliminar imágenes si hay
-        if (imagenesAEliminar.length > 0) {
-          const formDataDelete = new FormData();
-          imagenesAEliminar.forEach(publicId => {
-            formDataDelete.append("imagenesAEliminar", publicId);
-          });
-          formDataDelete.append("codigoEquipo", codigoEquipo);
+        // Manejar cambios de imágenes (eliminar y/o agregar)
+        if (imagenesAEliminar.length > 0 || (imagenes && imagenes.length > 0)) {
+          const formDataImages = new FormData();
           
-          await anadirImagenesReporte(formDataDelete);
+          // Agregar imágenes a eliminar
+          imagenesAEliminar.forEach(publicId => {
+            formDataImages.append("imagenesAEliminar", publicId);
+          });
+          
+          // Agregar nuevas imágenes
+          if (imagenes && imagenes.length > 0) {
+            for (let i = 0; i < imagenes.length; i++) {
+              formDataImages.append("imagenesEquipo", imagenes[i]);
+            }
+          }
+          
+          // Agregar código para identificar el reporte
+          formDataImages.append("codigoEquipo", codigoEquipo);
+          
+          // Hacer una única llamada
+          await anadirImagenesReporte(formDataImages);
+          
+          // Actualizar estado local
           setImagenesActuales(prev => 
             prev.filter(img => !imagenesAEliminar.includes(img.public_id))
           );
           setImagenesAEliminar([]);
-        }
-
-        // Agregar imágenes si hay
-        if (imagenes && imagenes.length > 0) {
-          const formData = new FormData();
-          for (let i = 0; i < imagenes.length; i++) {
-            formData.append("imagenesEquipo", imagenes[i]);
-          }
-          formData.append("codigoEquipo", codigoEquipo); // Usar el código actual (actualizado o no)
-          
-          await anadirImagenesReporte(formData);
           setImagenes(null);
           setImagenesPreview([]);
         }
 
-        setSuccess(Object.keys(datosLimpios).length > 0 || (imagenes && imagenes.length > 0) || imagenesAEliminar.length > 0 ? "Equipo actualizado correctamente" : "No hay cambios para guardar");
+        setSuccess(Object.keys(datosLimpios).length > 0 || imagenesAEliminar.length > 0 || (imagenes && imagenes.length > 0) ? "Equipo actualizado correctamente" : "No hay cambios para guardar");
         
         // Actualizar el estado local
         if (datosActualizar.codigoEquipo) setCodigoEquipo(datosActualizar.codigoEquipo);

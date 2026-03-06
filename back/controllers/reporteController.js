@@ -130,53 +130,112 @@ exports.obtenerReportes = async (req, res) => {
 };
 
 /**
- * @desc    Añadir más imágenes a un reporte existente
+ * @desc    Actualizar imágenes de un reporte (agregar nuevas y/o eliminar existentes)
  * @route   PATCH /api/reportes/imagenes
  * @access  Public
  */
 exports.actualizarImagenesReporte = async (req, res) => {
   try {
     const { codigoEquipo } = req.body; // El código para encontrar el reporte
-
-    // 1. Validar que las imágenes llegaron
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ msg: 'No se subieron imágenes.' });
+    
+    // Obtener los public_ids de las imágenes a eliminar desde FormData
+    let imagenesAEliminar = [];
+    if (req.body.imagenesAEliminar) {
+      // Si es un array, usarlo directamente; si es string, convertir a array
+      imagenesAEliminar = Array.isArray(req.body.imagenesAEliminar) 
+        ? req.body.imagenesAEliminar 
+        : [req.body.imagenesAEliminar];
     }
 
-    // 2. Subir las nuevas imágenes a R2 y formatear para guardar
-    const { uploadToR2 } = require('../config/r2.js');
+    const { uploadToR2, deleteFromR2 } = require('../config/r2.js');
     const folder = 'reportes-otis';
-    const uploadedUrls = await Promise.all(
-      req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
-    );
 
-    const imagenesParaGuardar = uploadedUrls.map(url => ({
-      url,
-      public_id: url.split('/').pop()
-    }));
-    // Encontramos el Bloque que contiene el reporte con 'codigoEquipo'
-    const bloqueActualizado = await Bloque.findOneAndUpdate(
-      { "reportes.codigoEquipo": codigoEquipo }, // Filtro: Encuentra el bloque
-      {
-        $push: {
-          "reportes.$.imagenesEquipo": { $each: imagenesParaGuardar }
+    // 1. PASO 1: Eliminar imágenes si hay
+    if (imagenesAEliminar.length > 0) {
+      console.log('Imágenes a eliminar:', imagenesAEliminar);
+      
+      // Buscar el reporte para obtener las URLs completas de las imágenes
+      const bloque = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
+      if (bloque) {
+        const reporte = bloque.reportes.find(r => r.codigoEquipo === codigoEquipo);
+        if (reporte && reporte.imagenesEquipo.length > 0) {
+          // Filtrar las imágenes que coinciden con los public_ids a eliminar
+          const imagenesAEliminarObjetos = reporte.imagenesEquipo.filter(img => 
+            imagenesAEliminar.includes(img.public_id)
+          );
+
+          console.log(`Encontradas ${imagenesAEliminarObjetos.length} imágenes para eliminar`);
+
+          // Eliminar de R2
+          for (const imagen of imagenesAEliminarObjetos) {
+            try {
+              await deleteFromR2(imagen.url);
+              console.log(`✓ Eliminada de R2: ${imagen.public_id}`);
+            } catch (deleteError) {
+              console.error(`✗ Error al eliminar de R2: ${imagen.public_id}`, deleteError);
+              // No detener el proceso si falla una imagen
+            }
+          }
+
+          // Eliminar del array en MongoDB
+          await Bloque.findOneAndUpdate(
+            { "reportes.codigoEquipo": codigoEquipo },
+            {
+              $pull: {
+                "reportes.$.imagenesEquipo": {
+                  public_id: { $in: imagenesAEliminar }
+                }
+              }
+            },
+            { new: true }
+          );
+          console.log(`✓ Imágenes eliminadas de MongoDB`);
         }
-      },
-      { new: true } // Devuelve el documento actualizado
-    );
+      }
+    }
+
+    // 2. PASO 2: Agregar nuevas imágenes si hay archivos
+    let bloqueActualizado = null;
+    if (req.files && req.files.length > 0) {
+      console.log(`Procesando ${req.files.length} nuevas imágenes...`);
+      
+      const uploadedUrls = await Promise.all(
+        req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
+      );
+
+      const imagenesParaGuardar = uploadedUrls.map(url => ({
+        url,
+        public_id: url.split('/').pop()
+      }));
+
+      // Encontramos el Bloque que contiene el reporte con 'codigoEquipo'
+      bloqueActualizado = await Bloque.findOneAndUpdate(
+        { "reportes.codigoEquipo": codigoEquipo }, // Filtro: Encuentra el bloque
+        {
+          $push: {
+            "reportes.$.imagenesEquipo": { $each: imagenesParaGuardar }
+          }
+        },
+        { new: true } // Devuelve el documento actualizado
+      );
+      console.log(`✓ ${imagenesParaGuardar.length} nuevas imágenes agregadas`);
+    } else {
+      // Si no hay archivos nuevos, solo obtener el documento actualizado después de eliminar
+      bloqueActualizado = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
+    }
 
     if (!bloqueActualizado) {
       return res.status(404).json({ msg: `No se encontró ningún reporte con el código ${codigoEquipo}.` });
     }
 
     res.status(200).json({
-      msg: 'Imágenes añadidas exitosamente',
+      msg: 'Imágenes actualizadas exitosamente',
       bloque: bloqueActualizado
     });
 
   } catch (err) {
-    console.error("EL ERROR COMPLETO DEL BACKEND ES:", err);
-    res.status(500).send('Error del Servidor');
+    console.error("❌ EL ERROR COMPLETO DEL BACKEND ES:", err);
+    res.status(500).json({ msg: 'Error del Servidor', error: err.message });
   }
 };
 

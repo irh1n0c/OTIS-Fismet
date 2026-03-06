@@ -102,15 +102,30 @@ const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
  */
 const deleteFromR2 = async (imageUrl) => {
   try {
-    // Extraer el nombre del archivo de la URL
-    const key = imageUrl.split('/').pop();
+    // Extraer el nombre del archivo/ruta de la URL
+    // El URL tiene formato: https://[account].r2.cloudflarestorage.com/ruta/archivo.jpg
+    // Necesitamos extraer: ruta/archivo.jpg
+    
+    const publicUrl = process.env.R2_PUBLIC_URL || '';
+    let key;
+    
+    if (imageUrl.includes(publicUrl)) {
+      // Reemplazar la URL base para obtener el key
+      key = imageUrl.replace(publicUrl + '/', '').replace(publicUrl, '');
+    } else {
+      // Fallback: tomar todo después del dominio
+      const parts = imageUrl.split('/');
+      key = parts.slice(3).join('/'); // Ignorar https:, "", y el dominio
+    }
+    
+    console.log(`Intentando eliminar de R2 con key: ${key}`);
     
     await r2Client.send(new DeleteObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: key,
     }));
     
-    console.log(`Imagen eliminada: ${key}`);
+    console.log(`✓ Imagen eliminada de R2: ${key}`);
   } catch (error) {
     console.error('Error eliminando de R2:', error);
     throw new Error('Error al eliminar imagen de R2');
