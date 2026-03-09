@@ -106,19 +106,43 @@ const deleteFromR2 = async (imageUrl) => {
     // El URL tiene formato: https://[account].r2.cloudflarestorage.com/ruta/archivo.jpg
     // Necesitamos extraer: ruta/archivo.jpg
     
-    const publicUrl = process.env.R2_PUBLIC_URL || '';
+    const publicUrl = process.env.R2_PUBLIC_URL?.replace(/\/$/, '') || '';
     let key;
     
+    if (!publicUrl) {
+      console.error('R2_PUBLIC_URL no está configurado');
+      throw new Error('R2_PUBLIC_URL no configurado en variables de entorno');
+    }
+    
+    // Estrategia 1: Si la URL contiene el R2_PUBLIC_URL
     if (imageUrl.includes(publicUrl)) {
-      // Reemplazar la URL base para obtener el key
-      key = imageUrl.replace(publicUrl + '/', '').replace(publicUrl, '');
-    } else {
-      // Fallback: tomar todo después del dominio
-      const parts = imageUrl.split('/');
-      key = parts.slice(3).join('/'); // Ignorar https:, "", y el dominio
+      // Eliminar el publicUrl y cualquier barra inicial
+      key = imageUrl.substring(publicUrl.length).replace(/^\/+/, '');
+    } 
+    // Estrategia 2: Si no coincide exactamente, extraer por patrón
+    else {
+      // Si es una URL de R2, debe tener "r2.cloudflarestorage.com"
+      const match = imageUrl.match(/r2\.cloudflarestorage\.com\/(.+)$/);
+      if (match && match[1]) {
+        key = match[1];
+      } else {
+        // Último recurso: tomar todo después del 3er /
+        const parts = imageUrl.split('/');
+        if (parts.length > 3) {
+          key = parts.slice(3).join('/');
+        } else {
+          throw new Error(`No se pudo extraer la clave de la URL: ${imageUrl}`);
+        }
+      }
+    }
+    
+    if (!key) {
+      throw new Error('La clave extraída está vacía');
     }
     
     console.log(`Intentando eliminar de R2 con key: ${key}`);
+    console.log(`URL original: ${imageUrl}`);
+    console.log(`R2_PUBLIC_URL: ${publicUrl}`);
     
     await r2Client.send(new DeleteObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
@@ -128,7 +152,9 @@ const deleteFromR2 = async (imageUrl) => {
     console.log(`✓ Imagen eliminada de R2: ${key}`);
   } catch (error) {
     console.error('Error eliminando de R2:', error);
-    throw new Error('Error al eliminar imagen de R2');
+    console.error('Detalles - URL:', imageUrl);
+    console.error('Detalles - R2_PUBLIC_URL:', process.env.R2_PUBLIC_URL);
+    throw new Error(`Error al eliminar imagen de R2: ${error.message}`);
   }
 };
 

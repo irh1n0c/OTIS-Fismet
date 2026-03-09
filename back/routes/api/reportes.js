@@ -37,6 +37,12 @@ router.post(
 
 router.get('/', obtenerReportes);
 
+// ==================== ENDPOINT DE DIAGNÓSTICO ====================
+// Este endpoint ayuda a verificar si la ruta /imagenes existe
+router.get('/health/imagenes', (req, res) => {
+  res.json({ msg: '✓ Ruta PATCH /api/reportes/imagenes está registrada correctamente', timestamp: new Date() });
+});
+
 // ==================== RUTAS DE EQUIPO (CRUD) ====================
 // ⚠️ IMPORTANTE: Las rutas específicas DEBEN IR ANTES que las dinámicas
 
@@ -53,7 +59,13 @@ router.post('/bloque', crearBloqueVacio);
 // @access  Public
 router.patch(
   '/imagenes',
-  upload.array('imagenesEquipo', 10), // Reutiliza el middleware de carga
+  (req, res, next) => {
+    console.log('✓ PATCH /imagenes - Iniciando middleware de multer');
+    upload.array('imagenesEquipo', 10)(req, res, (err) => {
+      console.log('✓ Multer completó. req.files:', req.files ? `${req.files.length} archivos` : 'undefined');
+      handleUploadErrors(err, req, res, next);
+    });
+  },
   actualizarImagenesReporte // Llama a la nueva función del controlador
 );
 

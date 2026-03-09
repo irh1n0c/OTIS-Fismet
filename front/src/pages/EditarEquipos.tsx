@@ -289,15 +289,18 @@ export function GestionEquipos() {
           formDataImages.append("codigoEquipo", codigoEquipo);
           
           // Hacer una única llamada
-          await anadirImagenesReporte(formDataImages);
+          const respuestaActualizacion = await anadirImagenesReporte(formDataImages);
           
-          // Actualizar estado local
-          setImagenesActuales(prev => 
-            prev.filter(img => !imagenesAEliminar.includes(img.public_id))
-          );
-          setImagenesAEliminar([]);
-          setImagenes(null);
-          setImagenesPreview([]);
+          // SOLO actualizar estado local si la respuesta fue exitosa
+          if (respuestaActualizacion) {
+            // Actualizar con las imágenes del backend para asegurar sincronización
+            setImagenesActuales(respuestaActualizacion.reportes[0]?.imagenesEquipo || 
+              imagenesActuales.filter(img => !imagenesAEliminar.includes(img.public_id))
+            );
+            setImagenesAEliminar([]);
+            setImagenes(null);
+            setImagenesPreview([]);
+          }
         }
 
         setSuccess(Object.keys(datosLimpios).length > 0 || imagenesAEliminar.length > 0 || (imagenes && imagenes.length > 0) ? "Equipo actualizado correctamente" : "No hay cambios para guardar");
@@ -312,6 +315,10 @@ export function GestionEquipos() {
       }
     } catch (err: any) {
       console.error(err);
+      // Limpiar estado de imágenes si hay error
+      setImagenesAEliminar([]);
+      setImagenes(null);
+      setImagenesPreview([]);
       setError(err.response?.data?.msg || "Error al guardar el equipo");
     } finally {
       setLoading(false);

@@ -7,8 +7,11 @@ const Bloque = require('../models/MongoModelo');
  */
 exports.crearReporte = async (req, res) => {
   try {
+    console.log("========== INICIANDO crearReporte ==========");
+    console.log("Método HTTP:", req.method);
+    console.log("Ruta:", req.path || req.url);
     console.log("BODY COMPLETO:", req.body);
-    console.log("OBSERVACIONES:", req.body.observaciones);
+    console.log("observaciones:", req.body.observaciones);
     const { departamento, nombreCliente, metrologo, codigoEquipo, observaciones } = req.body;
     // 2. Verificamos si este codigoEquipo ya existe en CUALQUIER bloque
     const reporteExistente = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
@@ -136,6 +139,13 @@ exports.obtenerReportes = async (req, res) => {
  */
 exports.actualizarImagenesReporte = async (req, res) => {
   try {
+    console.log('========== INICIANDO actualizarImagenesReporte ==========');
+    console.log('req.method:', req.method);
+    console.log('req.path:', req.path);
+    console.log('req.url:', req.url);
+    console.log('req.files:', req.files ? `${req.files.length} archivos` : 'undefined');
+    console.log('req.body:', req.body);
+    
     const { codigoEquipo } = req.body; // El código para encontrar el reporte
     
     // Obtener los public_ids de las imágenes a eliminar desde FormData
@@ -146,6 +156,9 @@ exports.actualizarImagenesReporte = async (req, res) => {
         ? req.body.imagenesAEliminar 
         : [req.body.imagenesAEliminar];
     }
+    
+    console.log('imagenesAEliminar:', imagenesAEliminar);
+    console.log('codigoEquipo:', codigoEquipo);
 
     const { uploadToR2, deleteFromR2 } = require('../config/r2.js');
     const folder = 'reportes-otis';
@@ -166,15 +179,24 @@ exports.actualizarImagenesReporte = async (req, res) => {
 
           console.log(`Encontradas ${imagenesAEliminarObjetos.length} imágenes para eliminar`);
 
+          const resultadosEliminacion = [];
           // Eliminar de R2
           for (const imagen of imagenesAEliminarObjetos) {
             try {
               await deleteFromR2(imagen.url);
               console.log(`✓ Eliminada de R2: ${imagen.public_id}`);
+              resultadosEliminacion.push({ public_id: imagen.public_id, success: true });
             } catch (deleteError) {
-              console.error(`✗ Error al eliminar de R2: ${imagen.public_id}`, deleteError);
-              // No detener el proceso si falla una imagen
+              console.error(`✗ Error al eliminar de R2: ${imagen.public_id} - ${deleteError.message}`);
+              resultadosEliminacion.push({ public_id: imagen.public_id, success: false, error: deleteError.message });
+              // Continuar con las siguientes imágenes pero registrar el error
             }
+          }
+
+          // Verificar si hubo fallos críticos
+          const fallos = resultadosEliminacion.filter(r => !r.success);
+          if (fallos.length > 0) {
+            console.warn(`⚠️ Fallos en eliminación de R2: ${fallos.length} de ${resultadosEliminacion.length}`);
           }
 
           // Eliminar del array en MongoDB
