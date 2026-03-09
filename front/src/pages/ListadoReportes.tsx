@@ -261,7 +261,14 @@ export const ListadoReportes: React.FC = () => {
               {expanded[bloque._id] && (
                 <CardContent className="p-4">
                   <div className="space-y-3">
-                    {bloque.reportes.map((reporte: IReporteIndividual) => (
+                    {bloque.reportes
+                      .sort((a, b) => {
+                        // Ordenar por código de equipo numéricamente (menor a mayor)
+                        const numA = parseInt(a.codigoEquipo, 10);
+                        const numB = parseInt(b.codigoEquipo, 10);
+                        return numA - numB;
+                      })
+                      .map((reporte: IReporteIndividual) => (
                       <Card key={reporte._id} className="border-gray-200 hover:shadow-md transition-shadow">
                         <CardContent className="p-3 space-y-2">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
