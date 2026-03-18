@@ -42,7 +42,7 @@ export const API_URL = import.meta.env.VITE_API_URL || ''; // <-- Esto leerá lo
 const apiClient = axios.create({
   // En DEV: dejamos baseURL vacío para que Vite proxy maneje /api
   // En PROD: usamos VITE_API_URL (no hay proxy de Vite en build)
-  baseURL: API_URL ? API_URL.replace(/\/$/, '') : ''
+  baseURL: import.meta.env.DEV ? '' : (API_URL ? API_URL.replace(/\/$/, '') : '')
 });
 
 export const subirReporte = async (formData: FormData): Promise<ISubirReporteResponse> => {

@@ -83,7 +83,7 @@ export function BuscarEquipo({}: Props) {
 
             <Button type="submit" className="w-full gap-2" disabled={loading}>
               <Search className="h-4 w-4" />
-              Buscar
+              Editar reporte
             </Button>
 
             <Button

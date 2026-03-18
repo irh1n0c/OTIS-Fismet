@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import imageCompression from 'browser-image-compression';
+import {  Trash2 } from "lucide-react";
+import { eliminarEquipo } from "../services/api";
+
 import {
   actualizarEquipo,
   buscarEquipoPorCodigo,
@@ -74,8 +77,8 @@ export function GestionEquipos() {
 
   const [imagenes, setImagenes] = useState<FileList | null>(null);
   const [imagenesPreview, setImagenesPreview] = useState<string[]>([]);
-  
-  const [imagenesActuales, setImagenesActuales] = useState<Array<{url: string, public_id: string}>>([]);
+
+  const [imagenesActuales, setImagenesActuales] = useState<Array<{ url: string, public_id: string }>>([]);
   const [imagenesAEliminar, setImagenesAEliminar] = useState<string[]>([]);
 
   const [success, setSuccess] = useState<string | null>(null);
@@ -122,7 +125,7 @@ export function GestionEquipos() {
       setObservaciones("");
       setImagenesActuales([]);
       setImagenesAEliminar([]);
-      
+
       setError(` Equipo con código "${codigo}" no encontrado. Verifica el código e intenta de nuevo.`);
     } finally {
       setLoading(false);
@@ -240,6 +243,35 @@ export function GestionEquipos() {
     };
   }, [imagenesPreview]);
 
+  const handleEliminar = async () => {
+    const codigo = codigoEquipo.trim();
+    if (!codigo) return;
+
+    const ok = window.confirm(
+      `¿Seguro que quieres eliminar el reporte del equipo con código "${codigo}"?\n\nEsta acción no se puede deshacer.`
+    );
+    if (!ok) return;
+
+    setLoading(true);
+    setSuccess(null);
+    setError(null);
+
+    try {
+      const { bloque, reporte } = await buscarEquipoPorCodigo(codigo);
+      await eliminarEquipo(bloque._id, reporte._id);
+      setSuccess("Reporte eliminado correctamente.");
+      setCodigoEquipo("");
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: unknown }).message)
+          : "No se pudo eliminar el reporte. Verifica el código e inténtalo nuevamente.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ===============================
      SUBMIT
   ================================ */
@@ -272,29 +304,29 @@ export function GestionEquipos() {
         // Manejar cambios de imágenes (eliminar y/o agregar)
         if (imagenesAEliminar.length > 0 || (imagenes && imagenes.length > 0)) {
           const formDataImages = new FormData();
-          
+
           // Agregar imágenes a eliminar
           imagenesAEliminar.forEach(publicId => {
             formDataImages.append("imagenesAEliminar", publicId);
           });
-          
+
           // Agregar nuevas imágenes
           if (imagenes && imagenes.length > 0) {
             for (let i = 0; i < imagenes.length; i++) {
               formDataImages.append("imagenesEquipo", imagenes[i]);
             }
           }
-          
+
           // Agregar código para identificar el reporte
           formDataImages.append("codigoEquipo", codigoEquipo);
-          
+
           // Hacer una única llamada
           const respuestaActualizacion = await anadirImagenesReporte(formDataImages);
-          
+
           // SOLO actualizar estado local si la respuesta fue exitosa
           if (respuestaActualizacion) {
             // Actualizar con las imágenes del backend para asegurar sincronización
-            setImagenesActuales(respuestaActualizacion.reportes[0]?.imagenesEquipo || 
+            setImagenesActuales(respuestaActualizacion.reportes[0]?.imagenesEquipo ||
               imagenesActuales.filter(img => !imagenesAEliminar.includes(img.public_id))
             );
             setImagenesAEliminar([]);
@@ -304,7 +336,7 @@ export function GestionEquipos() {
         }
 
         setSuccess(Object.keys(datosLimpios).length > 0 || imagenesAEliminar.length > 0 || (imagenes && imagenes.length > 0) ? "Equipo actualizado correctamente" : "No hay cambios para guardar");
-        
+
         // Actualizar el estado local
         if (datosActualizar.codigoEquipo) setCodigoEquipo(datosActualizar.codigoEquipo);
         if (datosActualizar.metrologo) setMetrologo(datosActualizar.metrologo);
@@ -429,16 +461,15 @@ export function GestionEquipos() {
                       <div
                         key={imagen.public_id}
                         onClick={() => eliminarImagenActual(imagen.public_id)}
-                        className={`relative group aspect-square rounded-md overflow-hidden border-2 cursor-pointer transition-all ${
-                          imagenesAEliminar.includes(imagen.public_id)
-                            ? 'border-red-500 opacity-50 bg-red-50'
-                            : 'border-gray-300 hover:border-red-500'
-                        }`}
+                        className={`relative group aspect-square rounded-md overflow-hidden border-2 cursor-pointer transition-all ${imagenesAEliminar.includes(imagen.public_id)
+                          ? 'border-red-500 opacity-50 bg-red-50'
+                          : 'border-gray-300 hover:border-red-500'
+                          }`}
                       >
-                        <img 
-                          src={imagen.url} 
-                          alt="Equipo" 
-                          className="w-full h-full object-cover" 
+                        <img
+                          src={imagen.url}
+                          alt="Equipo"
+                          className="w-full h-full object-cover"
                         />
                         {imagenesAEliminar.includes(imagen.public_id) && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
@@ -514,6 +545,17 @@ export function GestionEquipos() {
               <Separator />
 
               {/* Submit Button */}
+              <Button
+                type="button"
+                className="w-full gap-2"
+                variant="destructive"
+                onClick={handleEliminar}
+                disabled={loading}
+              >
+                <Trash2 className="h-4 w-4" />
+                Eliminar reporte
+              </Button>
+
               <Button
                 type="submit"
                 className="w-full"
