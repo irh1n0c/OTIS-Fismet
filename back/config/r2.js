@@ -98,14 +98,13 @@ const uploadToR2 = async (fileBuffer, filename, mimetype, folder = '') => {
 
 /**
  * Elimina una imagen de R2
- * @param {string} imageUrl - URL completa de la imagen
+ * @param {string} imageUrlOrKey - URL pública completa o Key (public_id) almacenada
  */
-const deleteFromR2 = async (imageUrl) => {
+const deleteFromR2 = async (imageUrlOrKey) => {
   try {
-    // Extraer el nombre del archivo/ruta de la URL
-    // El URL tiene formato: https://[account].r2.cloudflarestorage.com/ruta/archivo.jpg
-    // Necesitamos extraer: ruta/archivo.jpg
-    
+    const input = String(imageUrlOrKey || '').trim();
+    if (!input) throw new Error('Parámetro vacío para deleteFromR2');
+
     const publicUrl = process.env.R2_PUBLIC_URL?.replace(/\/$/, '') || '';
     let key;
     
@@ -113,25 +112,39 @@ const deleteFromR2 = async (imageUrl) => {
       console.error('R2_PUBLIC_URL no está configurado');
       throw new Error('R2_PUBLIC_URL no configurado en variables de entorno');
     }
+
+    // Si ya nos pasan el Key (public_id), úsalo tal cual.
+    // Heurística: si NO parece URL, lo tratamos como key.
+    if (!/^https?:\/\//i.test(input)) {
+      key = input.replace(/^\/+/, '');
+    } else {
+      // Intentar extraer el pathname vía URL (maneja querystring/encoding)
+      try {
+        const u = new URL(input);
+        key = u.pathname.replace(/^\/+/, '');
+      } catch {
+        // fallback a estrategias antiguas más abajo
+      }
+    }
     
     // Estrategia 1: Si la URL contiene el R2_PUBLIC_URL
-    if (imageUrl.includes(publicUrl)) {
+    if (!key && input.includes(publicUrl)) {
       // Eliminar el publicUrl y cualquier barra inicial
-      key = imageUrl.substring(publicUrl.length).replace(/^\/+/, '');
+      key = input.substring(publicUrl.length).replace(/^\/+/, '');
     } 
     // Estrategia 2: Si no coincide exactamente, extraer por patrón
-    else {
+    else if (!key) {
       // Si es una URL de R2, debe tener "r2.cloudflarestorage.com"
-      const match = imageUrl.match(/r2\.cloudflarestorage\.com\/(.+)$/);
+      const match = input.match(/r2\.cloudflarestorage\.com\/(.+)$/);
       if (match && match[1]) {
         key = match[1];
       } else {
         // Último recurso: tomar todo después del 3er /
-        const parts = imageUrl.split('/');
+        const parts = input.split('/');
         if (parts.length > 3) {
           key = parts.slice(3).join('/');
         } else {
-          throw new Error(`No se pudo extraer la clave de la URL: ${imageUrl}`);
+          throw new Error(`No se pudo extraer la clave de la URL: ${input}`);
         }
       }
     }
@@ -139,9 +152,17 @@ const deleteFromR2 = async (imageUrl) => {
     if (!key) {
       throw new Error('La clave extraída está vacía');
     }
+
+    // Normalización final: quitar querystring y decodificar
+    key = key.split('?')[0].split('#')[0];
+    try {
+      key = decodeURIComponent(key);
+    } catch {
+      // si viene mal-encoded, dejamos el string como está
+    }
     
     console.log(`Intentando eliminar de R2 con key: ${key}`);
-    console.log(`URL original: ${imageUrl}`);
+    console.log(`URL/Key original: ${input}`);
     console.log(`R2_PUBLIC_URL: ${publicUrl}`);
     
     await r2Client.send(new DeleteObjectCommand({
@@ -152,7 +173,7 @@ const deleteFromR2 = async (imageUrl) => {
     console.log(`✓ Imagen eliminada de R2: ${key}`);
   } catch (error) {
     console.error('Error eliminando de R2:', error);
-    console.error('Detalles - URL:', imageUrl);
+    console.error('Detalles - URL/Key:', imageUrlOrKey);
     console.error('Detalles - R2_PUBLIC_URL:', process.env.R2_PUBLIC_URL);
     throw new Error(`Error al eliminar imagen de R2: ${error.message}`);
   }

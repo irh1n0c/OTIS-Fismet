@@ -40,10 +40,11 @@ export const API_URL = import.meta.env.VITE_API_URL || ''; // <-- Esto leerá lo
 // (Asegúrate de que esta sea la URL exacta que copiaste de Render, SIN barra al final)
 
 const apiClient = axios.create({
-  baseURL: '' // <-- Deja esto vacío, ya que usaremos el proxy de Vite para redirigir a la URL correcta JOSELO
+  // En DEV: dejamos baseURL vacío para que Vite proxy maneje /api
+  // En PROD: usamos VITE_API_URL (no hay proxy de Vite en build)
+  baseURL: API_URL ? API_URL.replace(/\/$/, '') : ''
 });
 
-console.log("API URL configurada:", API_URL);
 export const subirReporte = async (formData: FormData): Promise<ISubirReporteResponse> => {
   // El tipo de respuesta ahora es ISubirReporteResponse
   const response = await apiClient.post<ISubirReporteResponse>('/api/reportes', formData, {
@@ -55,8 +56,12 @@ export const subirReporte = async (formData: FormData): Promise<ISubirReporteRes
 };
 export const obtenerReportes = async (): Promise<IBloque[]> => {
   // Ahora promete y devuelve un array de IBloque[], no Reporte[]
-  const response = await apiClient.get<IBloque[]>('/api/reportes');
-  return response.data; // Devuelve el array de bloques
+  const response = await apiClient.get('/api/reportes');
+  const data = response.data;
+  if (!Array.isArray(data)) {
+    throw new Error('Respuesta inválida del servidor: se esperaba un array de bloques');
+  }
+  return data as IBloque[]; // Devuelve el array de bloques
 };
 
 
