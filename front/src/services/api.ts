@@ -40,7 +40,7 @@ export const API_URL = import.meta.env.VITE_API_URL || ''; // <-- Esto leerá lo
 // (Asegúrate de que esta sea la URL exacta que copiaste de Render, SIN barra al final)
 
 const apiClient = axios.create({
-  baseURL: API_URL
+  baseURL: '' // <-- Deja esto vacío, ya que usaremos el proxy de Vite para redirigir a la URL correcta JOSELO
 });
 
 console.log("API URL configurada:", API_URL);

@@ -27,7 +27,7 @@ router.post(
   '/', 
   // 5. MODIFICAMOS CÓMO SE LLAMA A 'upload.array'
   (req, res, next) => {
-    upload.array('imagenesEquipo', 10)(req, res, (err) => {
+    upload.array('imagenesEquipo', 20)(req, res, (err) => {
       handleUploadErrors(err, req, res, next);
     });
   },
@@ -61,7 +61,7 @@ router.patch(
   '/imagenes',
   (req, res, next) => {
     console.log('✓ PATCH /imagenes - Iniciando middleware de multer');
-    upload.array('imagenesEquipo', 10)(req, res, (err) => {
+    upload.array('imagenesEquipo', 20)(req, res, (err) => {
       console.log('✓ Multer completó. req.files:', req.files ? `${req.files.length} archivos` : 'undefined');
       handleUploadErrors(err, req, res, next);
     });

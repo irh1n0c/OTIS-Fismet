@@ -1,13 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'path' // <-- 1. ¡PRIMER CAMBIO! Importa path
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
-    basicSsl()
+    react()
   ],
   
   // --- 2. ¡SEGUNDO CAMBIO! AÑADE EL BLOQUE RESOLVE ---
@@ -20,7 +18,7 @@ export default defineConfig({
   // --- FIN DE BLOQUE RESOLVE ---
   
   server: {
-    host: true, 
+    host: false, 
     proxy: {
       // Redirige cualquier petición que empiece con '/api'
       '/api': {
