@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import {
   subirReporte,
@@ -49,9 +49,17 @@ export const FormularioEnvio: React.FC = () => {
   const [imagenes, setImagenes] = useState<FileList | null>(null);
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [pendingCaptureCount, setPendingCaptureCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const imagenesRef = useRef<FileList | null>(null);
+  const captureQueueRef = useRef<File[]>([]);
+  const isProcessingQueueRef = useRef(false);
 
   // --- EFECTOS Y HANDLERS (Lógica original intacta) ---
   useEffect(() => {
@@ -73,10 +81,13 @@ export const FormularioEnvio: React.FC = () => {
     setter(e.target.value);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+  useEffect(() => {
+    imagenesRef.current = imagenes;
+  }, [imagenes]);
 
-    const filesFromInput = Array.from(e.target.files);
+  const processFiles = async (filesFromInput: File[]) => {
+    if (filesFromInput.length === 0) return;
+
     setIsCompressing(true);
     setError(null);
 
@@ -97,8 +108,8 @@ export const FormularioEnvio: React.FC = () => {
       const newPreviews: string[] = [];
       const newFileList = new DataTransfer();
 
-      if (imagenes) {
-        for (const imagen of Array.from(imagenes)) {
+      if (imagenesRef.current) {
+        for (const imagen of Array.from(imagenesRef.current)) {
           newFileList.items.add(imagen);
         }
       }
@@ -126,8 +137,33 @@ export const FormularioEnvio: React.FC = () => {
       setError(errorMessage);
     } finally {
       setIsCompressing(false);
-      e.target.value = '';
     }
+  };
+
+  const processCaptureQueue = async () => {
+    if (isProcessingQueueRef.current) return;
+
+    isProcessingQueueRef.current = true;
+    try {
+      while (captureQueueRef.current.length > 0) {
+        const nextFile = captureQueueRef.current.shift();
+        setPendingCaptureCount(captureQueueRef.current.length);
+
+        if (nextFile) {
+          await processFiles([nextFile]);
+        }
+      }
+    } finally {
+      isProcessingQueueRef.current = false;
+      setPendingCaptureCount(0);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    await processFiles(Array.from(e.target.files));
+    e.target.value = '';
   };
 
   const handleCodigoEquipoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,6 +210,97 @@ export const FormularioEnvio: React.FC = () => {
       imagenesPreview.forEach(url => URL.revokeObjectURL(url));
     };
   }, [imagenesPreview]);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!isCameraOpen) {
+      stopCamera();
+      return;
+    }
+
+    let cancelled = false;
+
+    const startCamera = async () => {
+      try {
+        setIsStartingCamera(true);
+        setError(null);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => undefined);
+        }
+      } catch (err: any) {
+        console.error('Error al iniciar la cámara:', err);
+        setError('No se pudo acceder a la cámara del dispositivo.');
+        setIsCameraOpen(false);
+      } finally {
+        if (!cancelled) {
+          setIsStartingCamera(false);
+        }
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  }, [isCameraOpen]);
+
+  const takePhoto = async () => {
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    if (!video.videoWidth || !video.videoHeight) {
+      setError('La cÃ¡mara aÃºn no estÃ¡ lista para capturar.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      setError('No se pudo procesar la foto tomada.');
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        setError('No se pudo convertir la captura en imagen.');
+        return;
+      }
+
+      const file = new File([blob], `foto-${Date.now()}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+
+      captureQueueRef.current.push(file);
+      setPendingCaptureCount(captureQueueRef.current.length);
+      void processCaptureQueue();
+    }, 'image/jpeg', 0.9);
+  };
 
   const handleCreateNewBlock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -246,6 +373,9 @@ export const FormularioEnvio: React.FC = () => {
       setMetrologo('');
       setCodigoEquipo('');
       setImagenes(null);
+      imagenesRef.current = null;
+      captureQueueRef.current = [];
+      setPendingCaptureCount(0);
       setImagenesPreview([]);
       (e.target as HTMLFormElement).reset();
       setIsUpdateMode(false);
@@ -408,8 +538,8 @@ export const FormularioEnvio: React.FC = () => {
                   type="button"
                   variant="outline"
                   className="h-auto py-4 flex flex-col gap-2 border-dashed border-2 hover:border-solid hover:bg-blue-50 hover:text-blue-600 hover:border-blue-500 transition-all"
-                  onClick={() => document.getElementById('input-camera')?.click()}
-                  disabled={isCompressing}
+                  onClick={() => setIsCameraOpen(true)}
+                  disabled={loading}
                 >
                   <Camera className="h-6 w-6" />
                   <span className="text-xs">Tomar Foto</span>
@@ -420,15 +550,14 @@ export const FormularioEnvio: React.FC = () => {
                   variant="outline"
                   className="h-auto py-4 flex flex-col gap-2 border-dashed border-2 hover:border-solid hover:bg-blue-50 hover:text-blue-600 hover:border-blue-500 transition-all"
                   onClick={() => document.getElementById('input-gallery')?.click()}
-                  disabled={isCompressing}
+                  disabled={loading || isCameraOpen}
                 >
                   <ImageIcon className="h-6 w-6" />
                   <span className="text-xs">Galería</span>
                 </Button>
 
                 {/* Inputs Ocultos */}
-                <input id="input-camera" type="file" className="hidden" accept="image/*" multiple capture="environment" onChange={handleFileChange} disabled={isCompressing} />
-                <input id="input-gallery" type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} disabled={isCompressing} />
+                <input id="input-gallery" type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} disabled={loading || isCameraOpen} />
               </div>
 
               {isCompressing && (
@@ -475,7 +604,7 @@ export const FormularioEnvio: React.FC = () => {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={loading || isCompressing || imagenesPreview.length === 0}>
+              disabled={loading || isCompressing || pendingCaptureCount > 0 || imagenesPreview.length === 0}>
               {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UploadCloud className="mr-2 h-5 w-5" />}
               {loading ? 'Procesando...' : (isUpdateMode ? 'Guardar Imágenes' : 'Guardar Reporte')}
             </Button>
@@ -504,6 +633,42 @@ export const FormularioEnvio: React.FC = () => {
           </CardFooter>
         )}
       </Card>
+
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-4">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full max-w-md rounded-lg bg-slate-950"
+          />
+
+          <div className="mt-4 flex w-full max-w-md gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setIsCameraOpen(false)}
+              disabled={isStartingCamera}
+            >
+              Salir
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={takePhoto}
+              disabled={isStartingCamera}
+            >
+              {isStartingCamera ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Camera className="mr-2 h-5 w-5" />}
+              Capturar
+            </Button>
+          </div>
+          <div className="mt-3 text-center text-sm text-white/80">
+            {pendingCaptureCount > 0 ? `Guardando ${pendingCaptureCount} foto(s) en segundo plano...` : 'Las fotos se guardarán automáticamente al ser tomadas.'}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
