@@ -73,6 +73,8 @@ export const FormularioEnvio: React.FC = () => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [pendingCaptureCount, setPendingCaptureCount] = useState(0);
+  const [cameraCaptureCount, setCameraCaptureCount] = useState(0);
+  const [isCaptureFlashVisible, setIsCaptureFlashVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export const FormularioEnvio: React.FC = () => {
   const imagenesRef = useRef<FileList | null>(null);
   const captureQueueRef = useRef<File[]>([]);
   const isProcessingQueueRef = useRef(false);
+  const flashTimeoutRef = useRef<number | null>(null);
 
   // --- EFECTOS Y HANDLERS (Lógica original intacta) ---
   useEffect(() => {
@@ -106,6 +109,22 @@ export const FormularioEnvio: React.FC = () => {
   useEffect(() => {
     imagenesRef.current = imagenes;
   }, [imagenes]);
+
+  const triggerCaptureFeedback = () => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(25);
+    }
+
+    if (flashTimeoutRef.current) {
+      window.clearTimeout(flashTimeoutRef.current);
+    }
+
+    setIsCaptureFlashVisible(true);
+    flashTimeoutRef.current = window.setTimeout(() => {
+      setIsCaptureFlashVisible(false);
+      flashTimeoutRef.current = null;
+    }, 140);
+  };
 
   const processFiles = async (filesFromInput: File[]) => {
     if (filesFromInput.length === 0) return;
@@ -230,12 +249,16 @@ export const FormularioEnvio: React.FC = () => {
   useEffect(() => {
     return () => {
       imagenesPreview.forEach(url => URL.revokeObjectURL(url));
+      if (flashTimeoutRef.current) {
+        window.clearTimeout(flashTimeoutRef.current);
+      }
     };
   }, [imagenesPreview]);
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach(track => track.stop());
     streamRef.current = null;
+    setIsCaptureFlashVisible(false);
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -243,6 +266,7 @@ export const FormularioEnvio: React.FC = () => {
 
   useEffect(() => {
     if (!isCameraOpen) {
+      setCameraCaptureCount(0);
       stopCamera();
       return;
     }
@@ -306,6 +330,7 @@ export const FormularioEnvio: React.FC = () => {
     }
 
     ctx.drawImage(video, 0, 0);
+    triggerCaptureFeedback();
 
     canvas.toBlob(async (blob) => {
       if (!blob) {
@@ -320,6 +345,7 @@ export const FormularioEnvio: React.FC = () => {
 
       captureQueueRef.current.push(file);
       setPendingCaptureCount(captureQueueRef.current.length);
+      setCameraCaptureCount(prev => prev + 1);
       void processCaptureQueue();
     }, 'image/jpeg', 0.9);
   };
@@ -464,7 +490,7 @@ export const FormularioEnvio: React.FC = () => {
             {/* Formulario Crear Nuevo */}
             <form onSubmit={handleCreateNewBlock} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="nombreCliente">N�mero de Expediente</Label>
+                <Label htmlFor="nombreCliente">Número de Expediente</Label>
                 <div className="relative">
                   <User className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
@@ -662,13 +688,21 @@ export const FormularioEnvio: React.FC = () => {
 
       {isCameraOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-4">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full max-w-md rounded-lg bg-slate-950"
-          />
+          <div className="relative w-full max-w-md overflow-hidden rounded-lg bg-slate-950">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full rounded-lg bg-slate-950"
+            />
+            <div
+              className={`pointer-events-none absolute inset-0 bg-white transition-opacity duration-150 ${isCaptureFlashVisible ? 'opacity-35' : 'opacity-0'}`}
+            />
+            <div className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+              {cameraCaptureCount === 0 ? 'Lista para capturar' : `${cameraCaptureCount} foto(s) tomada(s)`}
+            </div>
+          </div>
 
           <div className="mt-4 flex w-full max-w-md gap-3">
             <Button
