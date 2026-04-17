@@ -38,14 +38,15 @@ const ReporteIndividualSchema = new mongoose.Schema({
 const BloqueSchema = new mongoose.Schema({
   departamento: {
     type: String,
-    required: [true, 'El departamento es obligatorio'],
+    default: null,
     trim: true
   },
     
   nombreCliente: {
     type: String,
     required: [true, 'El nombre del cliente es obligatorio'],
-    trim: true
+    trim: true,
+    unique: true
   },
   reportes: [ReporteIndividualSchema]
 },
@@ -56,5 +57,6 @@ const BloqueSchema = new mongoose.Schema({
 
 // Aseguramos que la combinación de departamento y clínica sea única
 //BloqueSchema.index({ departamento: 1, clinica: 1 }, { /unique: true });
+BloqueSchema.index({ nombreCliente: 1 }, { unique: true });
 BloqueSchema.index({ "reportes.codigoEquipo": 1 }, { unique: true, sparse: true });
 module.exports = mongoose.model('Bloque', BloqueSchema);

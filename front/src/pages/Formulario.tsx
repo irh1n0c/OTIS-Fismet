@@ -27,15 +27,36 @@ import {
   CheckCircle2,
   X,
   UploadCloud,
-  MapPin,
   User
 } from "lucide-react";
 
 // --- INTERFACES ---
 interface ISelectedBlock {
-  departamento: string;
+  _id: string;
   nombreCliente: string;
 }
+
+const normalizarNombreCliente = (valor: string) => {
+  const nombreBase = valor.trim();
+  const anioVigente = new Date().getFullYear();
+
+  if (!nombreBase) {
+    return '';
+  }
+
+  if (nombreBase.endsWith(`-${anioVigente}`)) {
+    return nombreBase;
+  }
+
+  const partes = nombreBase.split('-');
+  const ultimaParte = partes[partes.length - 1];
+
+  if (partes.length >= 3 && /^\d{4}$/.test(ultimaParte)) {
+    return `${partes.slice(0, -1).join('-')}-${anioVigente}`;
+  }
+
+  return `${nombreBase}-${anioVigente}`;
+};
 
 export const FormularioEnvio: React.FC = () => {
   // --- ESTADOS (Lógica original) ---
@@ -55,6 +76,7 @@ export const FormularioEnvio: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [nuevoNombreCliente, setNuevoNombreCliente] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const imagenesRef = useRef<FileList | null>(null);
@@ -173,7 +195,7 @@ export const FormularioEnvio: React.FC = () => {
     if (!selectedBlock) return;
 
     const currentBlock = existingBlocks.find(
-      b => b.departamento === selectedBlock.departamento && b.nombreCliente === selectedBlock.nombreCliente
+      b => b._id === selectedBlock._id
     );
 
     if (!currentBlock) return;
@@ -304,22 +326,24 @@ export const FormularioEnvio: React.FC = () => {
 
   const handleCreateNewBlock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const newDepartamento = (e.target as any).departamento.value;
-    const newNombreCliente = (e.target as any).nombreCliente.value;
+    const newNombreCliente = normalizarNombreCliente(nuevoNombreCliente);
 
-    if (!newDepartamento || !newNombreCliente) return;
+    if (!newNombreCliente) {
+      setError('El número de expediente es obligatorio.');
+      return;
+    }
     setLoading(true);
 
     try {
-      const nuevoBloque = await crearNuevoBloque(newDepartamento, newNombreCliente);
+      const nuevoBloque = await crearNuevoBloque(newNombreCliente);
       setExistingBlocks(prev => [nuevoBloque, ...prev]);
       setSelectedBlock({
-        departamento: nuevoBloque.departamento,
+        _id: nuevoBloque._id,
         nombreCliente: nuevoBloque.nombreCliente
       });
     } catch (err: any) {
       console.error(err);
-      setError('Error al crear el bloque.');
+      setError(err.response?.data?.msg || 'Error al crear el bloque.');
     } finally {
       setLoading(false);
     }
@@ -361,8 +385,8 @@ export const FormularioEnvio: React.FC = () => {
         await anadirImagenesReporte(formData);
         setSuccess(`¡Imágenes añadidas al equipo ${codigoEquipo}!`);
       } else {
-        formData.append('departamento', selectedBlock!.departamento);
-        formData.append('nombreCliente', selectedBlock!.nombreCliente);
+        formData.append('departamento', 'null');
+        formData.append('nombreCliente', selectedBlock.nombreCliente);
         formData.append('metrologo', metrologo);
         formData.append('codigoEquipo', codigoEquipo);
         formData.append('observaciones', observaciones);
@@ -373,6 +397,7 @@ export const FormularioEnvio: React.FC = () => {
       setMetrologo('');
       setCodigoEquipo('');
       setImagenes(null);
+      setNuevoNombreCliente('');
       imagenesRef.current = null;
       captureQueueRef.current = [];
       setPendingCaptureCount(0);
@@ -414,17 +439,18 @@ export const FormularioEnvio: React.FC = () => {
               <Label>Seleccionar Bloque Existente</Label>
               {/* NOTE: Select uses max-w-full by default inside a Card */}
               <Select onValueChange={(val: any) => {
-                const [dep, nom] = val.split('|');
-                setSelectedBlock({ departamento: dep, nombreCliente: nom });
+                const bloque = existingBlocks.find(item => item._id === val);
+                if (bloque) {
+                  setSelectedBlock({ _id: bloque._id, nombreCliente: bloque.nombreCliente });
+                }
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder={isLoadingBlocks ? "Cargando..." : "Seleccione un bloque"} />
                 </SelectTrigger>
                 <SelectContent>
                   {existingBlocks.map((bloque) => (
-                    <SelectItem key={bloque._id} value={`${bloque.departamento}|${bloque.nombreCliente}`}>
+                    <SelectItem key={bloque._id} value={bloque._id}>
                       <span className="font-medium">{bloque.nombreCliente}</span>
-                      <span className="text-xs text-slate-500 ml-2">({bloque.departamento})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -438,17 +464,18 @@ export const FormularioEnvio: React.FC = () => {
             {/* Formulario Crear Nuevo */}
             <form onSubmit={handleCreateNewBlock} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="departamento">Lugar / Departamento</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
-                  <Input id="departamento" className="pl-8" placeholder="Ej: Lima" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nombreCliente">Cliente / Clínica</Label>
+                <Label htmlFor="nombreCliente">N�mero de Expediente</Label>
                 <div className="relative">
                   <User className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
-                  <Input id="nombreCliente" className="pl-8" placeholder="Ej: Clínica San Pablo" required />
+                  <Input
+                    id="nombreCliente"
+                    className="pl-8"
+                    placeholder={`Ej: E114-1994-${new Date().getFullYear()}`}
+                    required
+                    value={nuevoNombreCliente}
+                    onChange={(e) => setNuevoNombreCliente(e.target.value)}
+                    onBlur={() => setNuevoNombreCliente((valorActual) => normalizarNombreCliente(valorActual))}
+                  />
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
@@ -482,7 +509,6 @@ export const FormularioEnvio: React.FC = () => {
             <div>
               <CardDescription>Trabajando en:</CardDescription>
               <CardTitle className="text-lg text-slate-800">{selectedBlock.nombreCliente}</CardTitle>
-              <p className="text-sm text-slate-500 flex items-center mt-1"><MapPin className="w-3 h-3 mr-1" /> {selectedBlock.departamento}</p>
             </div>
             <Button variant="outline" size="sm" onClick={changeBlock} className="text-xs h-8">
               Cambiar
@@ -672,3 +698,4 @@ export const FormularioEnvio: React.FC = () => {
     </div>
   );
 };
+

@@ -53,7 +53,7 @@ interface Equipo {
 interface BloqueData {
   _id: string;
   nombreCliente: string;
-  departamento: string;
+  departamento: string | null;
 }
 
 /* ===============================
@@ -411,7 +411,6 @@ export function GestionEquipos() {
               {/* Información del Bloque */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm font-semibold text-gray-700">Cliente: <span className="text-gray-900">{bloqueData?.nombreCliente}</span></p>
-                <p className="text-sm text-gray-700">Departamento: <span className="text-gray-900">{bloqueData?.departamento}</span></p>
               </div>
 
               {/* Código de Equipo */}

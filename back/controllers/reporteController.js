@@ -1,32 +1,59 @@
 const Bloque = require('../models/MongoModelo');
 
+const obtenerNombreClienteNormalizado = (valor) => {
+  const nombreBase = String(valor || '').trim();
+  const anioVigente = new Date().getFullYear();
+
+  if (!nombreBase) {
+    return '';
+  }
+
+  if (nombreBase.endsWith(`-${anioVigente}`)) {
+    return nombreBase;
+  }
+
+  const partes = nombreBase.split('-');
+  const ultimaParte = partes[partes.length - 1];
+
+  if (partes.length >= 3 && /^\d{4}$/.test(ultimaParte)) {
+    return `${partes.slice(0, -1).join('-')}-${anioVigente}`;
+  }
+
+  return `${nombreBase}-${anioVigente}`;
+};
+
 /**
- * @desc    Crear un nuevo reporte
- * @route   POST /api/reportes
- * @access  Public (por ahora)
+ * @desc    Crear un nuevo reporte
+ * @route   POST /api/reportes
+ * @access  Public (por ahora)
  */
 exports.crearReporte = async (req, res) => {
+  let nombreCliente;
+  let codigoEquipo;
+
   try {
     console.log("========== INICIANDO crearReporte ==========");
-    console.log("Método HTTP:", req.method);
+    console.log("Metodo HTTP:", req.method);
     console.log("Ruta:", req.path || req.url);
     console.log("BODY COMPLETO:", req.body);
     console.log("observaciones:", req.body.observaciones);
-    const { departamento, nombreCliente, metrologo, codigoEquipo, observaciones } = req.body;
-    // 2. Verificamos si este codigoEquipo ya existe en CUALQUIER bloque
-    const reporteExistente = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
 
+    ({ nombreCliente, codigoEquipo } = req.body);
+    const { metrologo, observaciones } = req.body;
+    nombreCliente = obtenerNombreClienteNormalizado(nombreCliente);
+    const departamento = null;
+
+    const reporteExistente = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
     if (reporteExistente) {
       return res.status(400).json({
-        msg: `Error: El código de equipo '${codigoEquipo}' ya existe en el bloque del cliente '${reporteExistente.nombreCliente}'.`
+        msg: `Error: El codigo de equipo '${codigoEquipo}' ya existe en el bloque del cliente '${reporteExistente.nombreCliente}'.`
       });
     }
-    // 3. Los archivos subidos vienen en 'req.files' (como un array) - ahora en memoria
+
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ msg: 'No se subieron imágenes.' });
+      return res.status(400).json({ msg: 'No se subieron imagenes.' });
     }
 
-    // 4. Subir cada archivo a R2 y formatear las entradas para el Schema
     const { uploadToR2 } = require('../config/r2.js');
     const folder = 'reportes-otis';
     const uploadedUrls = await Promise.all(
@@ -38,7 +65,6 @@ exports.crearReporte = async (req, res) => {
       public_id: url.split('/').pop()
     }));
 
-    // 5. Creamos el objeto del nuevo reporte individual
     const nuevoReporte = {
       metrologo,
       codigoEquipo,
@@ -46,28 +72,28 @@ exports.crearReporte = async (req, res) => {
       imagenesEquipo: imagenesParaGuardar
     };
 
-    // 6. Añadimos el reporte al bloque correspondiente
     const bloqueActualizado = await Bloque.findOneAndUpdate(
-      { departamento, nombreCliente },
-      { $push: { reportes: nuevoReporte } },
-      { new: true, upsert: true } // Crea el bloque si no existe
+      { nombreCliente },
+      {
+        $setOnInsert: { nombreCliente, departamento },
+        $push: { reportes: nuevoReporte }
+      },
+      { new: true, upsert: true }
     );
 
-    // 7. Enviamos respuesta de éxito
     res.status(201).json({
       msg: 'Reporte creado exitosamente',
       reporte: bloqueActualizado
     });
-
   } catch (err) {
     console.error("EL ERROR COMPLETO DEL BACKEND ES:", err);
-    // Esto solo se activará si dos usuarios envían el mismo código al mismo tiempo.
+
     if (err.code === 11000) {
       if (err.keyPattern && err.keyPattern['reportes.codigoEquipo']) {
-        return res.status(400).json({ msg: `Error: El código de equipo '${codigoEquipo}' ya existe.` });
+        return res.status(400).json({ msg: `Error: El codigo de equipo '${codigoEquipo}' ya existe.` });
       }
-      if (err.keyPattern && err.keyPattern.departamento) {
-        return res.status(400).json({ msg: `Error: El bloque para '${departamento}' y '${nombreCliente}' ya existe.` });
+      if (err.keyPattern && err.keyPattern.nombreCliente) {
+        return res.status(400).json({ msg: `Error: El cliente '${nombreCliente}' ya existe.` });
       }
     }
 
@@ -80,51 +106,43 @@ exports.crearReporte = async (req, res) => {
   }
 };
 
-
 /**
- * @desc    Obtener todos los reportes
+ * @desc    Obtener reportes, opcionalmente paginados
  * @route   GET /api/reportes
  * @access  Public (para el admin)
  */
 exports.obtenerReportes = async (req, res) => {
   try {
+    const page = Number.parseInt(req.query.page, 10);
+    const limit = Number.parseInt(req.query.limit, 10);
+    const paginar = Number.isInteger(page) && page > 0 && Number.isInteger(limit) && limit > 0;
 
-    // 1. Usamos 'aggregate' en lugar de 'find'
-    const bloques = await Bloque.aggregate([
-      // Paso 1: Ordenar los BLOQUES principales (el más reciente primero)
-      // (Basado en cuándo se añadió el último reporte)
-      { $sort: { updatedAt: -1 } },
+    if (!paginar) {
+      const bloques = await Bloque.find().sort({ updatedAt: -1 });
+      return res.json(bloques);
+    }
 
-      // Paso 2: "Desenrollar" el array de reportes
-      // Esto trata a cada reporte como un documento separado temporalmente
-      { 
-        $unwind: {
-          path: "$reportes",
-          preserveNullAndEmptyArrays: true // Mantener bloques sin reportes
-        } 
-      },
+    const total = await Bloque.countDocuments();
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    const currentPage = totalPages > 0 ? Math.min(page, totalPages) : 1;
+    const skip = (currentPage - 1) * limit;
 
-      // Paso 3: Ordenar los REPORTES INDIVIDUALES (el más reciente primero)
-      { $sort: { "reportes.fecha": -1 } },
+    const bloques = await Bloque.find()
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-      // Paso 4: "Volver a enrollar" (agrupar) los reportes en sus bloques
-      {
-        $group: {
-          _id: "$_id", // Agrupar por el ID original del Bloque
-          departamento: { $first: "$departamento" },
-          nombreCliente: { $first: "$nombreCliente" },
-          createdAt: { $first: "$createdAt" },
-          updatedAt: { $first: "$updatedAt" },
-          // $push vuelve a meter los reportes (ahora ordenados) en el array
-          reportes: { $push: "$reportes" }
-        }
-      },
-
-      // Paso 5: Volver a ordenar los BLOQUES (ya que $group desordena)
-      { $sort: { updatedAt: -1 } }
-    ]);
-
-    res.json(bloques);
+    res.json({
+      data: bloques,
+      pagination: {
+        total,
+        page: currentPage,
+        limit,
+        pages: totalPages,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1
+      }
+    });
 
   } catch (err) {
     console.error(err.message);
@@ -133,7 +151,7 @@ exports.obtenerReportes = async (req, res) => {
 };
 
 /**
- * @desc    Actualizar imágenes de un reporte (agregar nuevas y/o eliminar existentes)
+ * @desc    Actualizar imagenes de un reporte (agregar nuevas y/o eliminar existentes)
  * @route   PATCH /api/reportes/imagenes
  * @access  Public
  */
@@ -145,61 +163,52 @@ exports.actualizarImagenesReporte = async (req, res) => {
     console.log('req.url:', req.url);
     console.log('req.files:', req.files ? `${req.files.length} archivos` : 'undefined');
     console.log('req.body:', req.body);
-    
-    const { codigoEquipo } = req.body; // El código para encontrar el reporte
-    
-    // Obtener los public_ids de las imágenes a eliminar desde FormData
+
+    const { codigoEquipo } = req.body;
+
     let imagenesAEliminar = [];
     if (req.body.imagenesAEliminar) {
-      // Si es un array, usarlo directamente; si es string, convertir a array
-      imagenesAEliminar = Array.isArray(req.body.imagenesAEliminar) 
-        ? req.body.imagenesAEliminar 
+      imagenesAEliminar = Array.isArray(req.body.imagenesAEliminar)
+        ? req.body.imagenesAEliminar
         : [req.body.imagenesAEliminar];
     }
-    
+
     console.log('imagenesAEliminar:', imagenesAEliminar);
     console.log('codigoEquipo:', codigoEquipo);
 
     const { uploadToR2, deleteFromR2 } = require('../config/r2.js');
     const folder = 'reportes-otis';
 
-    // 1. PASO 1: Eliminar imágenes si hay
     if (imagenesAEliminar.length > 0) {
-      console.log('Imágenes a eliminar:', imagenesAEliminar);
-      
-      // Buscar el reporte para obtener las URLs completas de las imágenes
+      console.log('Imagenes a eliminar:', imagenesAEliminar);
+
       const bloque = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
       if (bloque) {
         const reporte = bloque.reportes.find(r => r.codigoEquipo === codigoEquipo);
         if (reporte && reporte.imagenesEquipo.length > 0) {
-          // Filtrar las imágenes que coinciden con los public_ids a eliminar
-          const imagenesAEliminarObjetos = reporte.imagenesEquipo.filter(img => 
+          const imagenesAEliminarObjetos = reporte.imagenesEquipo.filter(img =>
             imagenesAEliminar.includes(img.public_id)
           );
 
-          console.log(`Encontradas ${imagenesAEliminarObjetos.length} imágenes para eliminar`);
+          console.log(`Encontradas ${imagenesAEliminarObjetos.length} imagenes para eliminar`);
 
           const resultadosEliminacion = [];
-          // Eliminar de R2
           for (const imagen of imagenesAEliminarObjetos) {
             try {
               await deleteFromR2(imagen.url);
-              console.log(`✓ Eliminada de R2: ${imagen.public_id}`);
+              console.log(`Eliminada de R2: ${imagen.public_id}`);
               resultadosEliminacion.push({ public_id: imagen.public_id, success: true });
             } catch (deleteError) {
-              console.error(`✗ Error al eliminar de R2: ${imagen.public_id} - ${deleteError.message}`);
+              console.error(`Error al eliminar de R2: ${imagen.public_id} - ${deleteError.message}`);
               resultadosEliminacion.push({ public_id: imagen.public_id, success: false, error: deleteError.message });
-              // Continuar con las siguientes imágenes pero registrar el error
             }
           }
 
-          // Verificar si hubo fallos críticos
           const fallos = resultadosEliminacion.filter(r => !r.success);
           if (fallos.length > 0) {
-            console.warn(`⚠️ Fallos en eliminación de R2: ${fallos.length} de ${resultadosEliminacion.length}`);
+            console.warn(`Fallos en eliminacion de R2: ${fallos.length} de ${resultadosEliminacion.length}`);
           }
 
-          // Eliminar del array en MongoDB
           await Bloque.findOneAndUpdate(
             { "reportes.codigoEquipo": codigoEquipo },
             {
@@ -211,16 +220,15 @@ exports.actualizarImagenesReporte = async (req, res) => {
             },
             { new: true }
           );
-          console.log(`✓ Imágenes eliminadas de MongoDB`);
+          console.log('Imagenes eliminadas de MongoDB');
         }
       }
     }
 
-    // 2. PASO 2: Agregar nuevas imágenes si hay archivos
     let bloqueActualizado = null;
     if (req.files && req.files.length > 0) {
-      console.log(`Procesando ${req.files.length} nuevas imágenes...`);
-      
+      console.log(`Procesando ${req.files.length} nuevas imagenes...`);
+
       const uploadedUrls = await Promise.all(
         req.files.map(file => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
       );
@@ -230,33 +238,30 @@ exports.actualizarImagenesReporte = async (req, res) => {
         public_id: url.split('/').pop()
       }));
 
-      // Encontramos el Bloque que contiene el reporte con 'codigoEquipo'
       bloqueActualizado = await Bloque.findOneAndUpdate(
-        { "reportes.codigoEquipo": codigoEquipo }, // Filtro: Encuentra el bloque
+        { "reportes.codigoEquipo": codigoEquipo },
         {
           $push: {
             "reportes.$.imagenesEquipo": { $each: imagenesParaGuardar }
           }
         },
-        { new: true } // Devuelve el documento actualizado
+        { new: true }
       );
-      console.log(`✓ ${imagenesParaGuardar.length} nuevas imágenes agregadas`);
+      console.log(`${imagenesParaGuardar.length} nuevas imagenes agregadas`);
     } else {
-      // Si no hay archivos nuevos, solo obtener el documento actualizado después de eliminar
       bloqueActualizado = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
     }
 
     if (!bloqueActualizado) {
-      return res.status(404).json({ msg: `No se encontró ningún reporte con el código ${codigoEquipo}.` });
+      return res.status(404).json({ msg: `No se encontro ningun reporte con el codigo ${codigoEquipo}.` });
     }
 
     res.status(200).json({
-      msg: 'Imágenes actualizadas exitosamente',
+      msg: 'Imagenes actualizadas exitosamente',
       bloque: bloqueActualizado
     });
-
   } catch (err) {
-    console.error("❌ EL ERROR COMPLETO DEL BACKEND ES:", err);
+    console.error("EL ERROR COMPLETO DEL BACKEND ES:", err);
     res.status(500).json({ msg: 'Error del Servidor', error: err.message });
   }
 };
@@ -268,37 +273,37 @@ exports.actualizarImagenesReporte = async (req, res) => {
  */
 exports.crearBloqueVacio = async (req, res) => {
   try {
-    const { departamento, nombreCliente } = req.body;
-    if (!departamento || !nombreCliente) {
-      return res.status(400).json({ msg: 'Departamento y Cliente son obligatorios.' });
+    let { nombreCliente } = req.body;
+    const departamento = null;
+    nombreCliente = obtenerNombreClienteNormalizado(nombreCliente);
+
+    if (!nombreCliente) {
+      return res.status(400).json({ msg: 'Cliente es obligatorio.' });
     }
-    let bloque = await Bloque.findOne({ departamento, nombreCliente });
-    
+
+    let bloque = await Bloque.findOne({ nombreCliente });
     if (bloque) {
-      return res.status(200).json({ 
-        msg: 'El bloque ya existía. Seleccionado correctamente.', 
-        bloque 
+      return res.status(400).json({
+        msg: `El bloque del cliente '${nombreCliente}' ya existe.`
       });
     }
-    // 3. Crear nuevo bloque
+
     bloque = new Bloque({
       departamento,
       nombreCliente,
-      reportes: [] // Array vacío
+      reportes: []
     });
 
     await bloque.save();
 
-    res.status(201).json({ 
-      msg: 'Bloque creado exitosamente', 
-      bloque 
+    res.status(201).json({
+      msg: 'Bloque creado exitosamente',
+      bloque
     });
-
   } catch (err) {
     console.error("Error creando bloque:", err);
-    // Capturar error de duplicado (por si acaso)
     if (err.code === 11000) {
-      return res.status(400).json({ msg: 'Este bloque ya existe.' });
+      return res.status(400).json({ msg: 'Este cliente ya existe.' });
     }
     res.status(500).send('Error del Servidor');
   }
