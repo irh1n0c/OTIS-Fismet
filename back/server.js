@@ -51,7 +51,7 @@ app.get('/images/proxy', (req, res) => {
 
 // Ruta de bienvenida
 app.get('/', (req, res) => {
-  res.send('API de Reportes FISMET funcionando... 🤖');
+  res.send('API de Reportes FISMET funcionando...');
 });
 
 const PORT = process.env.PORT || 5000;

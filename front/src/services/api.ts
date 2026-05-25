@@ -28,6 +28,13 @@ export interface IBloque {
   updatedAt: string; // Añadido por timestamps
 }
 
+export interface IPaginatedBloquesResponse {
+  bloques: IBloque[];
+  page: number;
+  totalPages: number;
+  totalItems: number;
+}
+
 // 3. Interface para la respuesta al crear un reporte
 interface ISubirReporteResponse {
   msg: string;
@@ -62,6 +69,11 @@ export const obtenerReportes = async (): Promise<IBloque[]> => {
     throw new Error('Respuesta inválida del servidor: se esperaba un array de bloques');
   }
   return data as IBloque[]; // Devuelve el array de bloques
+};
+
+export const obtenerReportesPaginados = async (page = 1, limit = 10): Promise<IPaginatedBloquesResponse> => {
+  const response = await apiClient.get<IPaginatedBloquesResponse>(`/api/reportes?page=${page}&limit=${limit}`);
+  return response.data;
 };
 
 

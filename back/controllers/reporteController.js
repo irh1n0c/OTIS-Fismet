@@ -88,42 +88,55 @@ exports.crearReporte = async (req, res) => {
  */
 exports.obtenerReportes = async (req, res) => {
   try {
+    const rawPage = parseInt(req.query.page, 10);
+    const rawLimit = parseInt(req.query.limit, 10);
 
-    // 1. Usamos 'aggregate' en lugar de 'find'
-    const bloques = await Bloque.aggregate([
-      // Paso 1: Ordenar los BLOQUES principales (el más reciente primero)
-      // (Basado en cuándo se añadió el último reporte)
+    const page = !Number.isNaN(rawPage) && rawPage > 0 ? rawPage : 1;
+    const limit = !Number.isNaN(rawLimit) && rawLimit > 0 ? rawLimit : 10;
+    const shouldPaginate = req.query.page !== undefined || req.query.limit !== undefined;
+
+    const pipeline = [
       { $sort: { updatedAt: -1 } },
-
-      // Paso 2: "Desenrollar" el array de reportes
-      // Esto trata a cada reporte como un documento separado temporalmente
-      { 
+      {
         $unwind: {
           path: "$reportes",
-          preserveNullAndEmptyArrays: true // Mantener bloques sin reportes
-        } 
+          preserveNullAndEmptyArrays: true
+        }
       },
-
-      // Paso 3: Ordenar los REPORTES INDIVIDUALES (el más reciente primero)
       { $sort: { "reportes.fecha": -1 } },
-
-      // Paso 4: "Volver a enrollar" (agrupar) los reportes en sus bloques
       {
         $group: {
-          _id: "$_id", // Agrupar por el ID original del Bloque
+          _id: "$_id",
           departamento: { $first: "$departamento" },
           nombreCliente: { $first: "$nombreCliente" },
           createdAt: { $first: "$createdAt" },
           updatedAt: { $first: "$updatedAt" },
-          // $push vuelve a meter los reportes (ahora ordenados) en el array
           reportes: { $push: "$reportes" }
         }
       },
-
-      // Paso 5: Volver a ordenar los BLOQUES (ya que $group desordena)
       { $sort: { updatedAt: -1 } }
-    ]);
+    ];
 
+    if (shouldPaginate) {
+      const totalItems = await Bloque.countDocuments();
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const skip = (page - 1) * limit;
+
+      const bloques = await Bloque.aggregate([
+        ...pipeline,
+        { $skip: skip },
+        { $limit: limit }
+      ]);
+
+      return res.json({
+        bloques,
+        page,
+        totalPages,
+        totalItems
+      });
+    }
+
+    const bloques = await Bloque.aggregate(pipeline);
     res.json(bloques);
 
   } catch (err) {

@@ -75,7 +75,7 @@ export function BuscarEquipo({}: Props) {
                 id="codigo"
                 value={codigoEquipo}
                 onChange={(e) => setCodigoEquipo(e.target.value)}
-                placeholder="Ej: 2121"
+                placeholder="Ej: 1414"
                 required
                 disabled={loading}
               />

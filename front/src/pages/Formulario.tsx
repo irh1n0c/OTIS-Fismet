@@ -55,6 +55,7 @@ export const FormularioEnvio: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [captureFlash, setCaptureFlash] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const imagenesRef = useRef<FileList | null>(null);
@@ -264,6 +265,24 @@ export const FormularioEnvio: React.FC = () => {
     };
   }, [isCameraOpen]);
 
+  const playShutterSound = () => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
+  };
+
   const takePhoto = async () => {
     if (!videoRef.current) return;
 
@@ -272,6 +291,10 @@ export const FormularioEnvio: React.FC = () => {
       setError('La cÃ¡mara aÃºn no estÃ¡ lista para capturar.');
       return;
     }
+
+    setCaptureFlash(true);
+    playShutterSound();
+    setTimeout(() => setCaptureFlash(false), 200);
 
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
@@ -501,7 +524,7 @@ export const FormularioEnvio: React.FC = () => {
                   id="codigoEquipo"
                   value={codigoEquipo}
                   onChange={handleCodigoEquipoChange}
-                  placeholder="Ej: 2121"
+                  placeholder="Ej: 1414"
                   required
                 />
               </div>
@@ -524,7 +547,7 @@ export const FormularioEnvio: React.FC = () => {
                 required
                 disabled={isUpdateMode}
                 className={isUpdateMode ? "bg-slate-100" : ""}
-                placeholder="Ej: RV, Renzo Vera, etc."
+                placeholder="Ej: JM, Jennyfer , etc."
               />
             </div>
 
@@ -594,8 +617,6 @@ export const FormularioEnvio: React.FC = () => {
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setObservaciones(e.target.value)}
                 placeholder="Ingrese observaciones del equipo, estado, condiciones, etc."
                 rows={4}
-                disabled={isUpdateMode} // opcional
-                className={isUpdateMode ? "bg-slate-100" : ""}
               />
             </div>
 
@@ -636,6 +657,10 @@ export const FormularioEnvio: React.FC = () => {
 
       {isCameraOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-4">
+          {captureFlash && (
+            <div className="fixed inset-0 bg-white opacity-70" style={{ animation: 'pulse 0.2s ease-out' }} />
+          )}
+          
           <video
             ref={videoRef}
             autoPlay

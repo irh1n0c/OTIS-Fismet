@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // Importa las funciones y las NUEVAS interfaces desde tu api.ts
-import { obtenerReportes, type IBloque, type IReporteIndividual, API_URL } from '../services/api';
+import { obtenerReportesPaginados, type IBloque, type IReporteIndividual, API_URL } from '../services/api';
 
 // --- UI IMPORTS (SHADCN & LUCIDE) ---
 import { Button } from "@/components/ui/button";
@@ -31,16 +31,22 @@ export const ListadoReportes: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedReports, setExpandedReports] = useState<Record<string, boolean>>({});
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   useEffect(() => {
-    cargarBloques();
-  }, []);
+    cargarBloques(page);
+  }, [page]);
 
-  const cargarBloques = async () => {
+  const cargarBloques = async (pageNumber = 1) => {
     try {
       setLoading(true);
-      const data = await obtenerReportes();
-      setBloques(data);
+      const data = await obtenerReportesPaginados(pageNumber, 10);
+      setBloques(data.bloques);
+      setPage(data.page);
+      setTotalPages(data.totalPages);
+      setTotalItems(data.totalItems);
       setError(null);
     } catch (err) {
       setError('Error al cargar los reportes: ' + (err as Error).message);
@@ -340,6 +346,30 @@ export const ListadoReportes: React.FC = () => {
               )}
             </Card>
           ))}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 px-2 py-3 bg-stone-50 rounded-md">
+            <p className="text-sm text-gray-600">
+              Página {page} de {totalPages} · {totalItems} bloques
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                disabled={page <= 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
