@@ -47,6 +47,7 @@ export const API_URL = import.meta.env.VITE_API_URL || ''; // <-- Esto leerá lo
 // (Asegúrate de que esta sea la URL exacta que copiaste de Render, SIN barra al final)
 
 const apiClient = axios.create({
+  withCredentials: true,
   // En DEV: dejamos baseURL vacío para que Vite proxy maneje /api
   // En PROD: usamos VITE_API_URL (no hay proxy de Vite en build)
   baseURL: import.meta.env.DEV ? '' : (API_URL ? API_URL.replace(/\/$/, '') : '')

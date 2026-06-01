@@ -1,7 +1,16 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const passport = require('passport');
+const MongoStore = require('connect-mongo');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const connectDB = require('./config/db');
+const User = require('./models/User');
+const authRoutes = require('./routes/auth');
+const reportesRoutes = require('./routes/api/reportes');
+const { ensureAuth } = require('./middleware/auth');
 
 // Cargar variables de entorno
 dotenv.config();
@@ -10,14 +19,88 @@ dotenv.config();
 connectDB();
 
 const app = express();
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
-// Middlewares
-app.use(cors()); // Permite peticiones desde tu frontend
-app.use(express.json()); // Permite leer JSON del body
-app.use(express.urlencoded({ extended: true })); // Permite leer datos de formularios
+app.use(cors({
+  origin: CLIENT_URL,
+  credentials: true,
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-// Definir la ruta principal
-app.use('/api/reportes', require('./routes/api/reportes'));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'default_session_secret',
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI,
+      collectionName: 'sessions',
+    }),
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
+});
+
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/google/callback`,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const googleId = profile.id;
+        const email = profile.emails?.[0]?.value;
+        const name = profile.displayName || profile.name?.givenName || 'Usuario Google';
+        const avatar = profile.photos?.[0]?.value;
+
+        if (!email) {
+          return done(new Error('No se pudo obtener el correo de Google')); 
+        }
+
+        let user = await User.findOne({ googleId });
+        if (!user) {
+          user = await User.create({
+            googleId,
+            email,
+            name,
+            avatar,
+          });
+        }
+
+        done(null, user);
+      } catch (error) {
+        done(error);
+      }
+    }
+  )
+);
+
+app.use('/api/auth', authRoutes);
+app.use('/api/reportes', ensureAuth, reportesRoutes);
 
 // Proxy público para imágenes (añade encabezados CORS)
 app.get('/images/proxy', (req, res) => {
