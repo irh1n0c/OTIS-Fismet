@@ -32,6 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Capturar token de la URL después del login con Google
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('token', token);
+      window.history.replaceState({}, '', '/');
+    }
     refreshUser();
   }, []);
 
