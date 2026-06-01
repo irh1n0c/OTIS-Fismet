@@ -1,8 +1,13 @@
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import type { ReactNode } from 'react';
 
-export const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -18,5 +23,5 @@ export const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 };
