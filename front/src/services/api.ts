@@ -53,6 +53,12 @@ const apiClient = axios.create({
   baseURL: import.meta.env.DEV ? '' : (API_URL ? API_URL.replace(/\/$/, '') : '')
 });
 
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 export const subirReporte = async (formData: FormData): Promise<ISubirReporteResponse> => {
   // El tipo de respuesta ahora es ISubirReporteResponse
   const response = await apiClient.post<ISubirReporteResponse>('/api/reportes', formData, {
