@@ -17,9 +17,7 @@ function AppContent() {
   const { user, logout } = useAuth();
 
   return (
-    <Router>
       <div className="App min-h-screen bg-white-100">
-
         {/* HEADER: ELIMINAMOS max-w-7xl y mx-auto */}
         <header className="sticky top-0 z-50 bg-white shadow-sm py-4">
           {/* La navegación ocupa el 100% del ancho con padding horizontal */}
@@ -87,15 +85,16 @@ function AppContent() {
           </Routes>
         </main>
       </div>
-    </Router>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 
