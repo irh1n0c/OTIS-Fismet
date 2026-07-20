@@ -58,17 +58,13 @@ function AppContent() {
               {user ? (
                 <>
                   <span className="flex items-center gap-2 text-sm text-slate-700">
-                    Holi,  {user.name}
+                    Bienvenido,  {user.name}
                   </span>
                   <Button onClick={logout} variant="outline">
                     Cerrar sesión
                   </Button>
                 </>
-              ) : (
-                <Button asChild variant="outline">
-                  <Link to="/login">Iniciar sesión</Link>
-                </Button>
-              )}
+              ): null}
             </div>
           </nav>
         </header>

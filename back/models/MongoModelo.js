@@ -27,7 +27,7 @@ const ReporteIndividualSchema = new mongoose.Schema({
         type: String,
         required: true
       },
-      public_id: { // El ID de Cloudinary para poder borrarla si es necesario
+      public_id: { 
         type: String,
         required: true
       }

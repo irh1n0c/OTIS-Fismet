@@ -67,7 +67,8 @@ export const ListadoReportes: React.FC = () => {
       if (hasDirPicker) {
         // @ts-ignore
         const rootHandle: FileSystemDirectoryHandle = await (globalThis as any).showDirectoryPicker();
-        const parentDir = await rootHandle.getDirectoryHandle(bloque.nombreCliente, { create: true });
+        const folderName = `${bloque.nombreCliente} - ${bloque.departamento}`;
+        const parentDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
 
         let reporteIdx = 0;
         for (const reporte of bloque.reportes) {
@@ -167,7 +168,7 @@ export const ListadoReportes: React.FC = () => {
     <div className="min-h-screen  bg-white-50">
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Panel de Reportes</h2>
 
-      {/* Sección de Filtro */}
+      {/* Sección de Filtro 
       <Card className="mb-6 shadow-sm">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
@@ -189,9 +190,10 @@ export const ListadoReportes: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      */}
 
 
-      {loading && <p className="flex items-center text-blue-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando reportes...</p>}
+      {loading && <p className="flex items-center text-stone-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando reportes...</p>}
       {error && <p className="text-red-500 flex items-center"><AlertCircle className="mr-2 h-4 w-4" />{error}</p>}
 
       {!loading && !error && (
@@ -202,7 +204,7 @@ export const ListadoReportes: React.FC = () => {
             <Card
               key={bloque._id}
               className="shadow-lg border-sonte-200">
-              <CardHeader className="bg-stone-50/50 border-b p-4">
+              <CardHeader className="bg-gray-50/50 border-b p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <LayersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-stone-800 flex-shrink-0" />
@@ -218,7 +220,18 @@ export const ListadoReportes: React.FC = () => {
                   </div>
 
                   {/* BOTÓN DE DESCARGA POR BLOQUE */}
-                  <div className="flex flex-col gap-1 w-full sm:w-auto">
+                  <div className="flex flex-col gap-1 w-full sm:w-auto items-center sm:items-end">
+                    <div className="text-xs text-stone-500 text-center sm:text-left mb-1">
+                      <p className="text-xs text-stone-500 text-center sm:text-left mb-1">Creado el:</p>
+                      {bloque.createdAt
+                        ? new Date(bloque.createdAt).toLocaleDateString('es-PE', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })
+                        : 'Sin fecha'
+                      }
+                    </div>
                     <div className="flex items-center gap-2 mb-1">
                       <Button
                         size="sm"
@@ -242,7 +255,7 @@ export const ListadoReportes: React.FC = () => {
                       size="sm"
                       onClick={() => handleDownloadBloque(bloque)}
                       disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
-                      className="bg-white-100 hover:bg-stone-100 text-stone-700 w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
+                      className="bg-white-100 border border-stone-200 hover:bg-stone-100 text-stone-700 w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
                     >
                       {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? (
                         <>
@@ -258,7 +271,7 @@ export const ListadoReportes: React.FC = () => {
                       )}
                     </Button>
                     {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' && (
-                      <small className="text-xs text-blue-600 text-center sm:text-left truncate">{downloadStatus[bloque._id]}</small>
+                      <small className="text-xs text-stone-900 text-center sm:text-left truncate">{downloadStatus[bloque._id]}</small>
                     )}
                   </div>
                 </div>
@@ -275,72 +288,72 @@ export const ListadoReportes: React.FC = () => {
                         return numA - numB;
                       })
                       .map((reporte: IReporteIndividual) => (
-                      <Card key={reporte._id} className="border-gray-200 hover:shadow-md transition-shadow">
-                        <CardContent className="p-3 space-y-2">
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className="bg-cyan-500 hover:bg-slate-800 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
-                              <p className="text-xs text-gray-500 flex items-center">
-                                <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
-                              </p>
-                            </div>
+                        <Card key={reporte._id} className="border-gray-200 hover:shadow-md transition-shadow">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className="bg-blue-800 hover:bg-slate-800 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
+                                <p className="text-xs text-gray-500 flex items-center">
+                                  <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
+                                </p>
+                              </div>
 
-                            <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                              <div className="text-xs text-gray-600">Imágenes: {reporte.imagenesEquipo.length}</div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setExpandedReports(prev => ({ ...prev, [reporte._id]: !prev[reporte._id] }))}
-                                className="text-xs"
-                              >
-                                {expandedReports[reporte._id] ? (
-                                  <>
-                                    <ChevronUp className="mr-1 h-3 w-3" /> Ocultar Imágenes
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown className="mr-1 h-3 w-3" /> Ver Imágenes
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-
-                          <p className="text-sm text-gray-700 font-medium flex items-center">
-                            <User className="h-3 w-3 mr-1" /> {reporte.metrologo}
-                          </p>
-
-                          <Separator className="my-2" />
-                          {reporte.observaciones && (
-                            <div className="text-sm text-gray-600 bg-stone-50 border border-stone-200 rounded-md p-2">
-                              <span className="font-semibold text-gray-700">Observaciones:</span>
-                              <p className="mt-1 whitespace-pre-line">
-                                {reporte.observaciones}
-                              </p>
-                            </div>
-                          )}
-                          {expandedReports[reporte._id] && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                              {reporte.imagenesEquipo.map((imagen, index) => (
+                              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                                <div className="text-xs text-gray-600">Imágenes: {reporte.imagenesEquipo.length}</div>
                                 <Button
-                                  key={imagen.public_id}
-                                  variant="ghost"
-                                  onClick={() => window.open(imagen.url, '_blank')}
-                                  className="h-auto p-0 rounded-md overflow-hidden"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setExpandedReports(prev => ({ ...prev, [reporte._id]: !prev[reporte._id] }))}
+                                  className="text-xs"
                                 >
-                                  <img
-                                    src={imagen.url}
-                                    alt={`Img ${index + 1}`}
-                                    loading="lazy"
-                                    className="w-full h-20 sm:h-28 md:h-32 object-cover transition-opacity hover:opacity-75"
-                                  />
+                                  {expandedReports[reporte._id] ? (
+                                    <>
+                                      <ChevronUp className="mr-1 h-3 w-3" /> Ocultar Imágenes
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="mr-1 h-3 w-3" /> Ver Imágenes
+                                    </>
+                                  )}
                                 </Button>
-                              ))}
+                              </div>
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+
+                            <p className="text-sm text-gray-700 font-medium flex items-center">
+                              <User className="h-3 w-3 mr-1" /> {reporte.metrologo}
+                            </p>
+
+                            <Separator className="my-2" />
+                            {reporte.observaciones && (
+                              <div className="text-sm text-gray-600 bg-stone-50 border border-stone-200 rounded-md p-2">
+                                <span className="font-semibold text-gray-700">Observaciones:</span>
+                                <p className="mt-1 whitespace-pre-line">
+                                  {reporte.observaciones}
+                                </p>
+                              </div>
+                            )}
+                            {expandedReports[reporte._id] && (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {reporte.imagenesEquipo.map((imagen, index) => (
+                                  <Button
+                                    key={imagen.public_id}
+                                    variant="ghost"
+                                    onClick={() => window.open(imagen.url, '_blank')}
+                                    className="h-auto p-0 rounded-md overflow-hidden"
+                                  >
+                                    <img
+                                      src={imagen.url}
+                                      alt={`Img ${index + 1}`}
+                                      loading="lazy"
+                                      className="w-full h-20 sm:h-28 md:h-32 object-cover transition-opacity hover:opacity-75"
+                                    />
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
                   </div>
                 </CardContent>
               )}

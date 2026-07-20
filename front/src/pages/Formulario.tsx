@@ -327,11 +327,26 @@ export const FormularioEnvio: React.FC = () => {
 
   const handleCreateNewBlock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const newDepartamento = (e.target as any).departamento.value;
-    const newNombreCliente = (e.target as any).nombreCliente.value;
+    
+    const rawDepartamento = (e.target as any).departamento.value;
+    const rawNombreCliente = (e.target as any).nombreCliente.value;
 
-    if (!newDepartamento || !newNombreCliente) return;
+    const sanitizeInput = (str: string): string => {
+      return str
+        .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const newDepartamento = sanitizeInput(rawDepartamento);
+    const newNombreCliente = sanitizeInput(rawNombreCliente);
+
+    if (!newDepartamento || !newNombreCliente) {
+      setError('El departamento y el nombre del cliente son obligatorios.');
+      return;
+    }
     setLoading(true);
+    setError(null);
 
     try {
       const nuevoBloque = await crearNuevoBloque(newDepartamento, newNombreCliente);
@@ -461,6 +476,7 @@ export const FormularioEnvio: React.FC = () => {
             {/* Formulario Crear Nuevo */}
             <form onSubmit={handleCreateNewBlock} className="space-y-4">
               <div className="space-y-2">
+                <p className="text-sm text-slate-500">Solo se permiten letras y números.</p>
                 <Label htmlFor="departamento">Lugar / Departamento</Label>
                 <div className="relative">
                   <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />

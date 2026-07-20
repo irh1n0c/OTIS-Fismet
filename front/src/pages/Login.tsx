@@ -15,18 +15,18 @@ export const Login: React.FC = () => {
     <div className=" place-items-center bg-white px-4 py-10 sm:px-6 sm:py-14">
       <Card className="w-full max-w-full rounded-[28px] border border-slate-200 bg-slate-50 px-0 py-0 shadow-xl shadow-slate-200/40 sm:max-w-xl md:max-w-2xl">
         <CardHeader className="space-y-2 px-6 pt-8 text-center sm:px-10">
-          <CardTitle className="text-3xl sm:text-4xl font-light tracking-wide bg-gradient-to-l from-blue-500 via-blue-700 to-red-900 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl sm:text-4xl font-light text-slate-600">
             Bienvenido a OTIS - Fismet 2026
           </CardTitle>
-          <p className="mx-auto max-w-xl px-2 text-sm text-slate-600 sm:text-base">
-            Es necesario que te autentiques con tu cuenta de Google para acceder a la aplicación.
+          <p className="mx-auto max-w-xl px-2 text-sm text-slate-500 sm:text-base">
+            Inicia sesión con una cuenta de Google para continuar.
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-6 px-6 pb-8 sm:px-10">
-          <div className="rounded-[26px] bg-white px-5 py-6 shadow-sm shadow-slate-200/50 sm:px-6">
+        <CardContent className="space-y-3 px-3 pb-6 sm:px-10">
+          <div className="rounded-[26px] bg-white px-3 py-3 shadow-sm shadow-slate-200/50 sm:px-6">
             <Button
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-light text-slate-900 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 sm:text-base"
+              className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-light text-slate-900 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 sm:text-base"
               onClick={() => {
                 window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
               }}
@@ -37,7 +37,7 @@ export const Login: React.FC = () => {
           </div>
 
           <div className="rounded-3xl bg-white px-4 py-4 text-center text-xs text-slate-500 shadow-sm shadow-slate-200/20 sm:text-sm">
-            Muchas gracias compañere.
+            Muchas gracias Fismetito.
           </div>
         </CardContent>
       </Card>
