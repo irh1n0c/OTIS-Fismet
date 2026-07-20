@@ -167,8 +167,6 @@ export const ListadoReportes: React.FC = () => {
   return (
     <div className="min-h-screen  bg-white-50">
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Panel de Reportes</h2>
-
-      {/* Sección de Filtro 
       <Card className="mb-6 shadow-sm">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
@@ -190,8 +188,6 @@ export const ListadoReportes: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      */}
-
 
       {loading && <p className="flex items-center text-stone-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando reportes...</p>}
       {error && <p className="text-red-500 flex items-center"><AlertCircle className="mr-2 h-4 w-4" />{error}</p>}
