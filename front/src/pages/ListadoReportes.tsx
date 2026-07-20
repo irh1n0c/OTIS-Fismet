@@ -216,9 +216,9 @@ export const ListadoReportes: React.FC = () => {
                   </div>
 
                   {/* BOTÓN DE DESCARGA POR BLOQUE */}
-                  <div className="flex flex-col gap-1 w-full sm:w-auto items-center sm:items-end">
-                    <div className="text-xs text-stone-500 text-center sm:text-left mb-1">
-                      <p className="text-xs text-stone-500 text-center sm:text-left mb-1">Creado el:</p>
+                  <div className="flex flex-col gap-1 w-full sm:w-auto items-start sm:items-start">
+                    <div className="text-xs text-stone-500 text-center text-left sm:text-left mb-1">
+                      <p className="text-xs text-stone-500 items-start text-left sm:text-left mb-1">Creado el:</p>
                       {bloque.createdAt
                         ? new Date(bloque.createdAt).toLocaleDateString('es-PE', {
                           day: 'numeric',
@@ -228,12 +228,12 @@ export const ListadoReportes: React.FC = () => {
                         : 'Sin fecha'
                       }
                     </div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 w-full">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => setExpanded(prev => ({ ...prev, [bloque._id]: !prev[bloque._id] }))}
-                        className="text-xs sm:text-sm whitespace-nowrap mr-0 bg-stone-900 text-white px-6 py-4 rounded-1/2 hover:bg-stone-700 hover:text-white"
+                        className="text-xs sm:text-sm whitespace-nowrap mr-0 bg-stone-900 text-white px-6 py-4 rounded-1/2 hover:bg-stone-700 hover:text-white w-full"
 
                       >
                         {expanded[bloque._id] ? (
@@ -251,7 +251,7 @@ export const ListadoReportes: React.FC = () => {
                       size="sm"
                       onClick={() => handleDownloadBloque(bloque)}
                       disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
-                      className="bg-white-100 border border-stone-200 hover:bg-stone-100 text-stone-700 w-full sm:w-auto text-xs sm:text-sm whitespace-nowrap"
+                      className="text-xs sm:text-sm whitespace-nowrap mr-0 bg-stone-100 text-stone-900 px-6 py-4 rounded-1/2 hover:bg-blue-800 hover:text-white w-full"
                     >
                       {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? (
                         <>
