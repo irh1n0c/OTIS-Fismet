@@ -10,6 +10,7 @@ import {
 } from '../services/api';
 import imageCompression from 'browser-image-compression';
 import { useAuth } from '@/contexts/AuthContext';
+import { isHeicImage, normalizeImageFile } from '@/lib/utils';
 
 // --- UI IMPORTS (SHADCN & LUCIDE) ---
 import { Textarea } from "@/components/ui/textarea";
@@ -108,7 +109,16 @@ export const FormularioEnvio: React.FC = () => {
     };
 
     try {
-      const compressedFilesPromises = filesFromInput.map(file => {
+      const normalizedFiles = await Promise.all(filesFromInput.map(async (file) => {
+        if (isHeicImage(file)) {
+          const jpgFile = await normalizeImageFile(file);
+          console.log(`HEIC/HEIF convertido: ${file.name} -> ${jpgFile.name}`);
+          return jpgFile;
+        }
+        return file;
+      }));
+
+      const compressedFilesPromises = normalizedFiles.map(file => {
         console.log(`Original: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
         return imageCompression(file, options);
       });
@@ -125,8 +135,9 @@ export const FormularioEnvio: React.FC = () => {
 
       compressedBlobs.forEach((blob, index) => {
         const originalFile = filesFromInput[index];
-        const compressedFile = new File([blob], originalFile.name, {
-          type: blob.type,
+        const jpgFileName = originalFile.name.replace(/\.(heic|heif)$/i, '.jpg').replace(/\.[^/.]+$/, '.jpg');
+        const compressedFile = new File([blob], jpgFileName, {
+          type: 'image/jpeg',
           lastModified: Date.now(),
         });
         console.log(`Comprimido: ${compressedFile.name} (${(compressedFile.size / 1024 / 1024).toFixed(2)} MB)`);
@@ -296,7 +307,7 @@ export const FormularioEnvio: React.FC = () => {
 
     const video = videoRef.current;
     if (!video.videoWidth || !video.videoHeight) {
-      setError('La cÃ¡mara aÃºn no estÃ¡ lista para capturar.');
+      setError('La camara aun no esta lista para capturar.');
       return;
     }
 
@@ -310,7 +321,7 @@ export const FormularioEnvio: React.FC = () => {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      setError('No se pudo procesar la foto tomada.');
+      setError('No se pudo procesar la foto capturada.');
       return;
     }
 

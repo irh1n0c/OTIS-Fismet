@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import imageCompression from 'browser-image-compression';
+import { isHeicImage, normalizeImageFile } from '@/lib/utils';
 import {  Trash2 } from "lucide-react";
 import { eliminarEquipo } from "../services/api";
 
@@ -174,7 +175,16 @@ export function GestionEquipos() {
     };
 
     try {
-      const compressedFilesPromises = filesFromInput.map(file => {
+      const normalizedFiles = await Promise.all(filesFromInput.map(async (file) => {
+        if (isHeicImage(file)) {
+          const jpgFile = await normalizeImageFile(file);
+          console.log(`HEIC/HEIF convertido: ${file.name} -> ${jpgFile.name}`);
+          return jpgFile;
+        }
+        return file;
+      }));
+
+      const compressedFilesPromises = normalizedFiles.map(file => {
         console.log(`Original: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
         return imageCompression(file, options);
       });
@@ -191,8 +201,9 @@ export function GestionEquipos() {
 
       compressedBlobs.forEach((blob, index) => {
         const originalFile = filesFromInput[index];
-        const compressedFile = new File([blob], originalFile.name, {
-          type: blob.type,
+        const jpgFileName = originalFile.name.replace(/\.(heic|heif)$/i, '.jpg').replace(/\.[^/.]+$/, '.jpg');
+        const compressedFile = new File([blob], jpgFileName, {
+          type: 'image/jpeg',
           lastModified: Date.now(),
         });
         console.log(`Comprimido: ${compressedFile.name} (${(compressedFile.size / 1024 / 1024).toFixed(2)} MB)`);
