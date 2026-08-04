@@ -55,14 +55,94 @@ export const ListadoReportes: React.FC = () => {
     }
   };
 
-  // 2. NUEVA FUNCIÓN DE DESCARGA (por Bloque)
-  const handleDownloadBloque = async (bloque: IBloque) => {
-    setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Iniciando...' }));
+  const getDownloadKey = (scope: 'bloque' | 'reporte', id: string) => `${scope}:${id}`;
+
+  const resolveImageUrl = (url: string) => {
+    const useProxy = !!API_URL;
+    const imagePath = (() => {
+      try {
+        return new URL(url).pathname.replace(/^\//, '');
+      } catch {
+        return url;
+      }
+    })();
+    return useProxy ? `${API_URL.replace(/\/$/, '')}/images/proxy?key=${encodeURIComponent(imagePath)}` : url;
+  };
+
+  const getImageExtension = (url: string) =>
+    (url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+
+  const handleDownloadReporte = async (reporte: IReporteIndividual, bloque: IBloque) => {
+    const reportKey = getDownloadKey('reporte', reporte._id);
+    setDownloadStatus(prev => ({ ...prev, [reportKey]: 'Iniciando...' }));
 
     try {
       const hasDirPicker = typeof (globalThis as any).showDirectoryPicker === 'function';
 
-      // ... (Toda la lógica de descarga con FileSystemAccess y Fallback se mantiene INTACTA) ...
+      if (hasDirPicker) {
+        // @ts-ignore
+        const rootHandle: FileSystemDirectoryHandle = await (globalThis as any).showDirectoryPicker();
+        const folderName = `${bloque.nombreCliente} - ${bloque.departamento}`;
+        const parentDir = await rootHandle.getDirectoryHandle(folderName, { create: true });
+        const reportFolderName = `${reporte.codigoEquipo}_${reporte.metrologo}`;
+        const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
+
+        let imgIdx = 0;
+        for (const imagen of reporte.imagenesEquipo) {
+          imgIdx++;
+          setDownloadStatus(prev => ({ ...prev, [reportKey]: `Descargando ${imgIdx}/${reporte.imagenesEquipo.length}` }));
+
+          const fetchUrl = resolveImageUrl(imagen.url);
+          const resp = await fetch(fetchUrl);
+          if (!resp.ok) throw new Error(`Error al descargar ${imagen.url}`);
+          const blob = await resp.blob();
+          const ext = getImageExtension(imagen.url);
+          const fileName = `${reporte.codigoEquipo}_${imgIdx}.${ext}`;
+
+          const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        }
+
+        setDownloadStatus(prev => ({ ...prev, [reportKey]: 'Completado' }));
+      } else {
+        setDownloadStatus(prev => ({ ...prev, [reportKey]: 'Iniciando descargas individuales...' }));
+
+        let imgIdx = 0;
+        for (const imagen of reporte.imagenesEquipo) {
+          imgIdx++;
+          setDownloadStatus(prev => ({ ...prev, [reportKey]: `Descargando ${imgIdx}/${reporte.imagenesEquipo.length}` }));
+
+          const ext = getImageExtension(imagen.url);
+          const fileName = `${bloque.nombreCliente}_${reporte.metrologo}_${reporte.codigoEquipo}_${imgIdx}.${ext}`;
+          const href = resolveImageUrl(imagen.url);
+
+          const a = document.createElement('a');
+          a.href = href;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        setDownloadStatus(prev => ({ ...prev, [reportKey]: 'Completado (descargas individuales)' }));
+      }
+    } catch (err) {
+      setDownloadStatus(prev => ({ ...prev, [reportKey]: 'Error: ' + ((err as Error).message || err) }));
+    } finally {
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [reportKey]: 'idle' })), 4000);
+    }
+  };
+
+  // 2. NUEVA FUNCIÓN DE DESCARGA (por Bloque)
+  const handleDownloadBloque = async (bloque: IBloque) => {
+    const bloqueKey = getDownloadKey('bloque', bloque._id);
+    setDownloadStatus(prev => ({ ...prev, [bloqueKey]: 'Iniciando...' }));
+
+    try {
+      const hasDirPicker = typeof (globalThis as any).showDirectoryPicker === 'function';
 
       if (hasDirPicker) {
         // @ts-ignore
@@ -73,7 +153,7 @@ export const ListadoReportes: React.FC = () => {
         let reporteIdx = 0;
         for (const reporte of bloque.reportes) {
           reporteIdx++;
-          setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Procesando reporte ${reporteIdx}/${bloque.reportes.length}` }));
+          setDownloadStatus(prev => ({ ...prev, [bloqueKey]: `Procesando reporte ${reporteIdx}/${bloque.reportes.length}` }));
 
           const reportFolderName = `${reporte.codigoEquipo}_${reporte.metrologo}`;
           const targetDir = await parentDir.getDirectoryHandle(reportFolderName, { create: true });
@@ -81,13 +161,11 @@ export const ListadoReportes: React.FC = () => {
           let imgIdx = 0;
           for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
-            const useProxy = !!API_URL;
-            const imagePath = (() => { try { return new URL(imagen.url).pathname.replace(/^\//, ''); } catch { return imagen.url; } })();
-            const fetchUrl = useProxy ? `${API_URL.replace(/\/$/, '')}/images/proxy?key=${encodeURIComponent(imagePath)}` : imagen.url;
+            const fetchUrl = resolveImageUrl(imagen.url);
             const resp = await fetch(fetchUrl);
             if (!resp.ok) throw new Error(`Error al descargar ${imagen.url}`);
             const blob = await resp.blob();
-            const ext = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+            const ext = getImageExtension(imagen.url);
             const fileName = `${reporte.codigoEquipo}_${imgIdx}.${ext}`;
 
             const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
@@ -96,11 +174,10 @@ export const ListadoReportes: React.FC = () => {
             await writable.close();
           }
         }
-        setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Completado' }));
+        setDownloadStatus(prev => ({ ...prev, [bloqueKey]: 'Completado' }));
 
       } else {
-        // Fallback (Descargas individuales)
-        setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Iniciando descargas individuales...' }));
+        setDownloadStatus(prev => ({ ...prev, [bloqueKey]: 'Iniciando descargas individuales...' }));
         let totalImages = 0;
         bloque.reportes.forEach(r => totalImages += r.imagenesEquipo.length);
         let currentImage = 0;
@@ -110,14 +187,11 @@ export const ListadoReportes: React.FC = () => {
           for (const imagen of reporte.imagenesEquipo) {
             imgIdx++;
             currentImage++;
-            setDownloadStatus(prev => ({ ...prev, [bloque._id]: `Descargando ${currentImage}/${totalImages}` }));
+            setDownloadStatus(prev => ({ ...prev, [bloqueKey]: `Descargando ${currentImage}/${totalImages}` }));
 
-            const extGuess = (imagen.url.split('?')[0].split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+            const extGuess = getImageExtension(imagen.url);
             const fileName = `${bloque.nombreCliente}_${reporte.metrologo}_${reporte.codigoEquipo}_${imgIdx}.${extGuess}`;
-
-            const useProxy = !!API_URL;
-            const imagePath = (() => { try { return new URL(imagen.url).pathname.replace(/^\//, ''); } catch { return imagen.url; } })();
-            const href = useProxy ? `${API_URL.replace(/\/$/, '')}/images/proxy?key=${encodeURIComponent(imagePath)}` : imagen.url;
+            const href = resolveImageUrl(imagen.url);
 
             const a = document.createElement('a');
             a.href = href;
@@ -128,13 +202,13 @@ export const ListadoReportes: React.FC = () => {
             await new Promise(r => setTimeout(r, 300));
           }
         }
-        setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Completado (descargas individuales)' }));
+        setDownloadStatus(prev => ({ ...prev, [bloqueKey]: 'Completado (descargas individuales)' }));
       }
 
     } catch (err) {
-      setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'Error: ' + ((err as Error).message || err) }));
+      setDownloadStatus(prev => ({ ...prev, [bloqueKey]: 'Error: ' + ((err as Error).message || err) }));
     } finally {
-      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [bloque._id]: 'idle' })), 4000);
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [bloqueKey]: 'idle' })), 4000);
     }
   };
 
@@ -250,24 +324,24 @@ export const ListadoReportes: React.FC = () => {
                     <Button
                       size="sm"
                       onClick={() => handleDownloadBloque(bloque)}
-                      disabled={!!downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle'}
+                      disabled={!!downloadStatus[getDownloadKey('bloque', bloque._id)] && downloadStatus[getDownloadKey('bloque', bloque._id)] !== 'idle'}
                       className="text-xs sm:text-sm whitespace-nowrap mr-0 bg-stone-100 text-stone-900 px-6 py-4 rounded-1/2 hover:bg-blue-800 hover:text-white w-full"
                     >
-                      {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' ? (
+                      {downloadStatus[getDownloadKey('bloque', bloque._id)] && downloadStatus[getDownloadKey('bloque', bloque._id)] !== 'idle' ? (
                         <>
                           <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                          <span className="truncate">{downloadStatus[bloque._id].includes('Procesando') ? 'Procesando...' : 'Descargando'}</span>
+                          <span className="truncate">{downloadStatus[getDownloadKey('bloque', bloque._id)].includes('Procesando') ? 'Procesando...' : 'Descargando'}</span>
                         </>
                       ) : (
                         <>
                           <Download className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Descargar todo ({bloque.reportes.length})</span>
+                          <span className="hidden sm:inline">Descargar Bloque ({bloque.reportes.length})</span>
                           <span className="sm:hidden">Descargar ({bloque.reportes.length})</span>
                         </>
                       )}
                     </Button>
-                    {downloadStatus[bloque._id] && downloadStatus[bloque._id] !== 'idle' && (
-                      <small className="text-xs text-stone-900 text-center sm:text-left truncate">{downloadStatus[bloque._id]}</small>
+                    {downloadStatus[getDownloadKey('bloque', bloque._id)] && downloadStatus[getDownloadKey('bloque', bloque._id)] !== 'idle' && (
+                      <small className="text-xs text-stone-900 text-center sm:text-left truncate">{downloadStatus[getDownloadKey('bloque', bloque._id)]}</small>
                     )}
                   </div>
                 </div>
@@ -294,7 +368,7 @@ export const ListadoReportes: React.FC = () => {
                                 </p>
                               </div>
 
-                              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                              <div className="flex items-center gap-2 mt-2 sm:mt-0 flex-wrap">
                                 <div className="text-xs text-gray-600">Imágenes: {reporte.imagenesEquipo.length}</div>
                                 <Button
                                   size="sm"
@@ -312,8 +386,32 @@ export const ListadoReportes: React.FC = () => {
                                     </>
                                   )}
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadReporte(reporte, bloque)}
+                                  disabled={!!downloadStatus[getDownloadKey('reporte', reporte._id)] && downloadStatus[getDownloadKey('reporte', reporte._id)] !== 'idle'}
+                                  className="text-xs mr-0 bg-stone-100 text-stone-900 px-6 py-4 rounded-1/2 hover:bg-stone-900 hover:text-white"
+                                >
+                                  {downloadStatus[getDownloadKey('reporte', reporte._id)] && downloadStatus[getDownloadKey('reporte', reporte._id)] !== 'idle' ? (
+                                    <>
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                      Descargar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="mr-1 h-3 w-3" /> Descargar equipo
+                                    </>
+                                  )}
+                                </Button>
                               </div>
                             </div>
+
+                            {downloadStatus[getDownloadKey('reporte', reporte._id)] && downloadStatus[getDownloadKey('reporte', reporte._id)] !== 'idle' && (
+                              <p className="text-xs text-stone-600 mt-1 truncate">
+                                {downloadStatus[getDownloadKey('reporte', reporte._id)]}
+                              </p>
+                            )}
 
                             <p className="text-sm text-gray-700 font-medium flex items-center">
                               <User className="h-3 w-3 mr-1" /> {reporte.metrologo}

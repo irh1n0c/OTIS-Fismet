@@ -12,7 +12,7 @@ const GoogleIcon = () => (
 
 export const Login: React.FC = () => {
   return (
-    <div className=" place-items-center bg-white px-4 py-10 sm:px-6 sm:py-14">
+    <div className=" place-items-center bg-white px-0 py-4 sm:px-6 sm:py-14">
       <Card className="w-full max-w-full rounded-[28px] border border-slate-200 bg-slate-50 px-0 py-0 shadow-xl shadow-slate-200/40 sm:max-w-xl md:max-w-2xl">
         <CardHeader className="space-y-2 px-6 pt-8 text-center sm:px-10">
           <CardTitle className="text-3xl sm:text-4xl font-light text-slate-600">
