@@ -13,6 +13,11 @@ exports.crearReporte = async (req, res) => {
     console.log("BODY COMPLETO:", req.body);
     console.log("observaciones:", req.body.observaciones);
     const { departamento, nombreCliente, metrologo, codigoEquipo, observaciones } = req.body;
+    const metrologoAsignado = metrologo?.trim() || req.user?.name;
+
+    if (!metrologoAsignado) {
+      return res.status(400).json({ msg: 'No se pudo determinar el metrólogo del reporte.' });
+    }
     // 2. Verificamos si este codigoEquipo ya existe en CUALQUIER bloque
     const reporteExistente = await Bloque.findOne({ "reportes.codigoEquipo": codigoEquipo });
 
@@ -40,7 +45,7 @@ exports.crearReporte = async (req, res) => {
 
     // 5. Creamos el objeto del nuevo reporte individual
     const nuevoReporte = {
-      metrologo,
+      metrologo: metrologoAsignado,
       codigoEquipo,
       observaciones: observaciones || '',
       imagenesEquipo: imagenesParaGuardar
@@ -90,6 +95,10 @@ exports.obtenerReportes = async (req, res) => {
   try {
     const rawPage = parseInt(req.query.page, 10);
     const rawLimit = parseInt(req.query.limit, 10);
+    const equipo = typeof req.query.equipo === 'string' ? req.query.equipo.trim() : '';
+    const equipoRegex = equipo
+      ? new RegExp(equipo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      : null;
 
     const page = !Number.isNaN(rawPage) && rawPage > 0 ? rawPage : 1;
     const limit = !Number.isNaN(rawLimit) && rawLimit > 0 ? rawLimit : 10;
@@ -103,6 +112,7 @@ exports.obtenerReportes = async (req, res) => {
           preserveNullAndEmptyArrays: true
         }
       },
+      ...(equipoRegex ? [{ $match: { "reportes.codigoEquipo": equipoRegex } }] : []),
       { $sort: { "reportes.fecha": -1 } },
       {
         $group: {
@@ -118,7 +128,9 @@ exports.obtenerReportes = async (req, res) => {
     ];
 
     if (shouldPaginate) {
-      const totalItems = await Bloque.countDocuments();
+      const totalItems = await Bloque.countDocuments(
+        equipoRegex ? { "reportes.codigoEquipo": equipoRegex } : {}
+      );
       const totalPages = Math.max(1, Math.ceil(totalItems / limit));
       const skip = (page - 1) * limit;
 

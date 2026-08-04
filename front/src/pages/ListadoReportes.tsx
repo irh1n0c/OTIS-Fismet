@@ -25,7 +25,7 @@ import { LayersIcon } from '@/components/icons/lucide-layers';
 export const ListadoReportes: React.FC = () => {
   // 1. El estado principal ahora almacena Bloques, no Reportes
   const [bloques, setBloques] = useState<IBloque[]>([]);
-  const [filtroMetrologo, setFiltroMetrologo] = useState('');
+  const [filtroEquipo, setFiltroEquipo] = useState('');
   const [downloadStatus, setDownloadStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +36,13 @@ export const ListadoReportes: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
 
   useEffect(() => {
-    cargarBloques(page);
-  }, [page]);
+    cargarBloques(page, filtroEquipo);
+  }, [page, filtroEquipo]);
 
-  const cargarBloques = async (pageNumber = 1) => {
+  const cargarBloques = async (pageNumber = 1, equipo = '') => {
     try {
       setLoading(true);
-      const data = await obtenerReportesPaginados(pageNumber, 10);
+      const data = await obtenerReportesPaginados(pageNumber, 10, equipo);
       setBloques(data.bloques);
       setPage(data.page);
       setTotalPages(data.totalPages);
@@ -216,12 +216,12 @@ export const ListadoReportes: React.FC = () => {
   // 3. LÓGICA DE FILTRADO (Ahora filtra los reportes DENTRO de cada bloque)
   const bloquesFiltrados = bloques
     .map(bloque => {
-      if (filtroMetrologo === '') {
+      if (filtroEquipo === '') {
         return bloque;
       }
 
       const reportesCoincidentes = bloque.reportes.filter((reporte: IReporteIndividual) => // Aquí le damos el tipo al reporte
-        reporte.metrologo.toLowerCase().includes(filtroMetrologo.toLowerCase())
+        reporte.codigoEquipo.toLowerCase().includes(filtroEquipo.toLowerCase())
       );
 
       if (reportesCoincidentes.length > 0) {
@@ -246,17 +246,20 @@ export const ListadoReportes: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-gray-500" />
-              <Label htmlFor="filtroMetrologo" className="whitespace-nowrap">
-                Buscar por Metrólogo:
+              <Label htmlFor="filtroEquipo" className="whitespace-nowrap">
+                Buscar por Equipo:
               </Label>
             </div>
 
             <Input
-              id="filtroMetrologo"
+              id="filtroEquipo"
               type="text"
-              value={filtroMetrologo}
-              onChange={(e) => setFiltroMetrologo(e.target.value)}
-              placeholder="Escribe el nombre aquí"
+              value={filtroEquipo}
+              onChange={(e) => {
+                setFiltroEquipo(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Escribe el código aquí"
               className="w-full"
             />
           </div>
@@ -482,7 +485,7 @@ export const ListadoReportes: React.FC = () => {
 
       {/* Mensaje de Sin Resultados */}
       {!loading && !error && bloquesFiltrados.length === 0 && (
-        <p className="text-gray-500 mt-8">No se encontraron bloques {filtroMetrologo && 'con reportes para el metrólogo especificado'}.</p>
+        <p className="text-gray-500 mt-8">No se encontraron bloques {filtroEquipo && 'con reportes para el equipo especificado'}.</p>
       )}
     </div>
   );

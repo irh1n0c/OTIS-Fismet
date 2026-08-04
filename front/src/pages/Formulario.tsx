@@ -9,6 +9,7 @@ import {
   type IReporteIndividual
 } from '../services/api';
 import imageCompression from 'browser-image-compression';
+import { useAuth } from '@/contexts/AuthContext';
 
 // --- UI IMPORTS (SHADCN & LUCIDE) ---
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,7 @@ interface ISelectedBlock {
 }
 
 export const FormularioEnvio: React.FC = () => {
+  const { user } = useAuth();
   // --- ESTADOS (Lógica original) ---
   const [selectedBlock, setSelectedBlock] = useState<ISelectedBlock | null>(null);
   const [existingBlocks, setExistingBlocks] = useState<IBloque[]>([]);
@@ -61,6 +63,12 @@ export const FormularioEnvio: React.FC = () => {
   const imagenesRef = useRef<FileList | null>(null);
   const captureQueueRef = useRef<File[]>([]);
   const isProcessingQueueRef = useRef(false);
+
+  useEffect(() => {
+    if (user?.name) {
+      setMetrologo(valorActual => valorActual || user.name);
+    }
+  }, [user?.name]);
 
   // --- EFECTOS Y HANDLERS (Lógica original intacta) ---
   useEffect(() => {
@@ -189,7 +197,7 @@ export const FormularioEnvio: React.FC = () => {
       setObservaciones(existingReport.observaciones || '');
     } else {
       setIsUpdateMode(false);
-      setMetrologo('');
+      setMetrologo(user?.name || '');
       setObservaciones('');
     }
   };
@@ -389,6 +397,14 @@ export const FormularioEnvio: React.FC = () => {
     setSuccess(null);
 
     const formData = new FormData();
+    const metrologoAsignado = metrologo.trim() || user?.name || '';
+
+    if (!isUpdateMode && !metrologoAsignado) {
+      setError('No se pudo obtener el nombre del usuario autenticado.');
+      setLoading(false);
+      return;
+    }
+
     for (let i = 0; i < imagenes.length; i++) {
       formData.append('imagenesEquipo', imagenes[i]);
     }
@@ -401,14 +417,14 @@ export const FormularioEnvio: React.FC = () => {
       } else {
         formData.append('departamento', selectedBlock!.departamento);
         formData.append('nombreCliente', selectedBlock!.nombreCliente);
-        formData.append('metrologo', metrologo);
+        formData.append('metrologo', metrologoAsignado);
         formData.append('codigoEquipo', codigoEquipo);
         formData.append('observaciones', observaciones);
         await subirReporte(formData);
         setSuccess('¡Reporte nuevo creado exitosamente!');
       }
 
-      setMetrologo('');
+      setMetrologo(user?.name || '');
       setCodigoEquipo('');
       setImagenes(null);
       imagenesRef.current = null;
@@ -560,10 +576,9 @@ export const FormularioEnvio: React.FC = () => {
                 id="metrologo"
                 value={metrologo}
                 onChange={(e: any) => handleInputChange(e, setMetrologo)}
-                required
                 disabled={isUpdateMode}
                 className={isUpdateMode ? "bg-slate-100" : ""}
-                placeholder="Ej: JM, Jennyfer , etc."
+                placeholder={user?.name || "Nombre del usuario autenticado"}
               />
             </div>
 

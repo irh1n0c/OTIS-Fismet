@@ -78,8 +78,10 @@ export const obtenerReportes = async (): Promise<IBloque[]> => {
   return data as IBloque[]; // Devuelve el array de bloques
 };
 
-export const obtenerReportesPaginados = async (page = 1, limit = 10): Promise<IPaginatedBloquesResponse> => {
-  const response = await apiClient.get<IPaginatedBloquesResponse>(`/api/reportes?page=${page}&limit=${limit}`);
+export const obtenerReportesPaginados = async (page = 1, limit = 10, equipo = ''): Promise<IPaginatedBloquesResponse> => {
+  const response = await apiClient.get<IPaginatedBloquesResponse>('/api/reportes', {
+    params: { page, limit, equipo: equipo.trim() || undefined }
+  });
   return response.data;
 };
 
