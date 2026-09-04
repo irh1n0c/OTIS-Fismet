@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 // Importa las funciones y las NUEVAS interfaces desde tu api.ts
 import { obtenerReportesPaginados, type IBloque, type IReporteIndividual, API_URL } from '../services/api';
 
@@ -17,12 +18,14 @@ import {
   Loader2,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Pencil
 } from "lucide-react";
 import { LayersIcon } from '@/components/icons/lucide-layers';
 
 
 export const ListadoReportes: React.FC = () => {
+  const navigate = useNavigate();
   // 1. El estado principal ahora almacena Bloques, no Reportes
   const [bloques, setBloques] = useState<IBloque[]>([]);
   const [filtroEquipo, setFiltroEquipo] = useState('');
@@ -388,6 +391,14 @@ export const ListadoReportes: React.FC = () => {
                                       <ChevronDown className="mr-1 h-3 w-3" /> Ver Imágenes
                                     </>
                                   )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(`/editar-reportes?codigoEquipo=${encodeURIComponent(reporte.codigoEquipo)}`)}
+                                  className="text-xs"
+                                >
+                                  <Pencil className="mr-1 h-3 w-3" /> Editar equipo
                                 </Button>
                                 <Button
                                   size="sm"
