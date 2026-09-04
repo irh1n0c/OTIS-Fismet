@@ -22,7 +22,7 @@ function AppContent() {
         <header className="sticky top-0 z-50 bg-white shadow-sm py-4">
           {/* La navegación ocupa el 100% del ancho con padding horizontal */}
           <nav className="flex flex-col md:flex-row md:items-center md:justify-between px-4 sm:px-6 lg:px-8">
-            <ul className="flex flex-col sm:flex-row justify-center sm:space-x-6 space-y-2 sm:space-y-0">
+             <ul className="flex flex-col sm:flex-row justify-center items-center sm:space-x-6 space-y-2 sm:space-y-0 w-full">
 
               <li className="w-full sm:w-auto">
                 <Button asChild variant="ghost" className="w-full text-base text-cyan-900 hover:bg-blue-50/50">
@@ -43,16 +43,16 @@ function AppContent() {
                   </Link>
                 </Button>
               </li>
-              <Separator orientation="vertical" className="hidden sm:block h-8 bg-gray-300" />
+              {/* <Separator orientation="vertical" className="hidden sm:block h-8 bg-gray-300" /> */}
 
-              <li className="w-full sm:w-auto">
+              {/* <li className="w-full sm:w-auto">
                 <Button asChild variant="ghost" className="w-full text-base text-gray-600 hover:bg-gray-50/50">
                   <Link to="buscar-equipo">
                     <ListChecks className="mr-2 h-4 w-4" />
                     Editar un Reporte
                   </Link>
                 </Button>
-              </li>
+              </li> */}
             </ul>
             <div className="mt-4 flex flex-col items-center justify-end gap-2 sm:mt-0 sm:flex-row">
               {user ? (
