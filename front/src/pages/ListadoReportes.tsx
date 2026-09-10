@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Importa las funciones y las NUEVAS interfaces desde tu api.ts
 import { obtenerReportesPaginados, type IBloque, type IReporteIndividual, API_URL } from '../services/api';
 
-// --- UI IMPORTS (SHADCN & LUCIDE) ---
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,11 +240,10 @@ export const ListadoReportes: React.FC = () => {
 
   // 4. RENDERIZADO 
   return (
-    <div className="min-h-screen  bg-white-50">
-      <h2 className="text-3xl font-bold text-gray-800 mb-6">Panel de Reportes</h2>
-      <Card className="mb-6 shadow-sm">
+    <div className="min-h-screen bg-white-50 p-0 sm:p-6 lg:p-8">
+      <Card className="mb-4 shadow-sm">
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-4">
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-gray-500" />
               <Label htmlFor="filtroEquipo" className="whitespace-nowrap">

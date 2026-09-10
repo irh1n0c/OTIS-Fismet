@@ -369,7 +369,7 @@ export function GestionEquipos() {
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-start p-6 bg-white">
+    <div className="min-h-screen flex justify-center items-start bg-white">
       <Card className="w-full max-w-2xl shadow-lg">
         <CardHeader>
           <CardTitle>
