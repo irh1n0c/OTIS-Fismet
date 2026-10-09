@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 import {
   subirReporte,
-  obtenerReportes,
+  obtenerBloquesRecientes,
   anadirImagenesReporte,
   crearNuevoBloque,
   type IBloque,
@@ -76,8 +76,8 @@ export const FormularioEnvio: React.FC = () => {
     const loadExistingBlocks = async () => {
       try {
         setIsLoadingBlocks(true);
-        const response = await obtenerReportes();
-        setExistingBlocks(response);
+        const response = await obtenerBloquesRecientes(5);
+        setExistingBlocks(response.slice(0, 5));
       } catch (err: any) {
         setError((err as Error).message || 'Error al cargar los bloques existentes.');
       } finally {
@@ -369,7 +369,7 @@ export const FormularioEnvio: React.FC = () => {
 
     try {
       const nuevoBloque = await crearNuevoBloque(newDepartamento, newNombreCliente);
-      setExistingBlocks(prev => [nuevoBloque, ...prev]);
+      setExistingBlocks(prev => [nuevoBloque, ...prev.filter(b => b._id !== nuevoBloque._id)].slice(0, 5));
       setSelectedBlock({
         departamento: nuevoBloque.departamento,
         nombreCliente: nuevoBloque.nombreCliente
@@ -385,8 +385,8 @@ export const FormularioEnvio: React.FC = () => {
   const changeBlock = async () => {
     setIsLoadingBlocks(true);
     try {
-      const bloquesActualizados = await obtenerReportes();
-      setExistingBlocks(bloquesActualizados);
+      const bloquesActualizados = await obtenerBloquesRecientes(5);
+      setExistingBlocks(bloquesActualizados.slice(0, 5));
     } catch (err) {
       console.error("Error al refrescar bloques:", err);
     } finally {
@@ -444,7 +444,7 @@ export const FormularioEnvio: React.FC = () => {
       setImagenesPreview([]);
       (e.target as HTMLFormElement).reset();
       setIsUpdateMode(false);
-      obtenerReportes().then(response => setExistingBlocks(response));
+      obtenerBloquesRecientes(5).then(response => setExistingBlocks(response.slice(0, 5)));
 
     } catch (err: any) {
       console.error("Error del servidor:", err.response);
@@ -486,7 +486,7 @@ export const FormularioEnvio: React.FC = () => {
                   <SelectValue placeholder={isLoadingBlocks ? "Cargando..." : "Seleccione un bloque"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {existingBlocks.map((bloque) => (
+                  {existingBlocks.slice(0, 5).map((bloque) => (
                     <SelectItem key={bloque._id} value={`${bloque.departamento}|${bloque.nombreCliente}`}>
                       <span className="font-medium">{bloque.nombreCliente}</span>
                       <span className="text-xs text-slate-500 ml-2">({bloque.departamento})</span>

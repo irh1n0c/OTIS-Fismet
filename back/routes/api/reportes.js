@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../../config/multer'); 
-const { crearReporte, obtenerReportes, actualizarImagenesReporte, crearBloqueVacio } = require('../../controllers/reporteController');
+const { crearReporte, obtenerReportes, actualizarImagenesReporte, crearBloqueVacio, obtenerBloquesRecientes } = require('../../controllers/reporteController');
 const { actualizarEquipo, eliminarEquipo, obtenerEquipo, buscarEquipoPorCodigo } = require('../../controllers/equipoController');
 const multer = require('multer'); 
 
@@ -36,6 +36,10 @@ router.post(
 );
 
 router.get('/', obtenerReportes);
+
+// @route   GET /api/reportes/recientes
+// @desc    Obtener los últimos bloques creados (por defecto 5)
+router.get('/recientes', obtenerBloquesRecientes);
 
 // ==================== ENDPOINT DE DIAGNÓSTICO ====================
 // Este endpoint ayuda a verificar si la ruta /imagenes existe

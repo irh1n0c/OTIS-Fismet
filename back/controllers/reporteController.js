@@ -87,12 +87,42 @@ exports.crearReporte = async (req, res) => {
 
 
 /**
+ * @desc    Obtener los últimos bloques creados (por defecto 5)
+ * @route   GET /api/reportes/recientes
+ * @access  Public
+ */
+exports.obtenerBloquesRecientes = async (req, res) => {
+  try {
+    const rawLimit = parseInt(req.query.limit, 10);
+    const limit = !Number.isNaN(rawLimit) && rawLimit > 0 ? rawLimit : 5;
+
+    const bloques = await Bloque.find()
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
+
+    res.json(bloques);
+  } catch (err) {
+    console.error("Error al obtener bloques recientes:", err.message);
+    res.status(500).send('Error del Servidor');
+  }
+};
+
+/**
  * @desc    Obtener todos los reportes
  * @route   GET /api/reportes
  * @access  Public (para el admin)
  */
 exports.obtenerReportes = async (req, res) => {
   try {
+    if (req.query.recientes !== undefined) {
+      const rawRecientes = parseInt(req.query.recientes, 10);
+      const limitRecientes = !Number.isNaN(rawRecientes) && rawRecientes > 0 ? rawRecientes : 5;
+      const bloques = await Bloque.find()
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(limitRecientes);
+      return res.json(bloques);
+    }
+
     const rawPage = parseInt(req.query.page, 10);
     const rawLimit = parseInt(req.query.limit, 10);
     const equipo = typeof req.query.equipo === 'string' ? req.query.equipo.trim() : '';

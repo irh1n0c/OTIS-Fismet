@@ -68,14 +68,31 @@ export const subirReporte = async (formData: FormData): Promise<ISubirReporteRes
   });
   return response.data; // Devuelve { msg: '...', bloque: {...} }
 };
-export const obtenerReportes = async (): Promise<IBloque[]> => {
-  // Ahora promete y devuelve un array de IBloque[], no Reporte[]
-  const response = await apiClient.get('/api/reportes');
-  const data = response.data;
-  if (!Array.isArray(data)) {
-    throw new Error('Respuesta inválida del servidor: se esperaba un array de bloques');
+export const obtenerBloquesRecientes = async (limit = 5): Promise<IBloque[]> => {
+  try {
+    const response = await apiClient.get<IBloque[]>('/api/reportes/recientes', {
+      params: { limit }
+    });
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      const fallbackResponse = await apiClient.get<IBloque[]>('/api/reportes', {
+        params: { recientes: limit }
+      });
+      if (Array.isArray(fallbackResponse.data)) {
+        return fallbackResponse.data.slice(0, limit);
+      }
+    }
+    throw error;
   }
-  return data as IBloque[]; // Devuelve el array de bloques
+  throw new Error('Respuesta inválida del servidor: se esperaba un array de bloques');
+};
+
+export const obtenerReportes = async (limit = 5): Promise<IBloque[]> => {
+  return obtenerBloquesRecientes(limit);
 };
 
 export const obtenerReportesPaginados = async (page = 1, limit = 10, equipo = ''): Promise<IPaginatedBloquesResponse> => {
