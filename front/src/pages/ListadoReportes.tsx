@@ -364,20 +364,27 @@ export const ListadoReportes: React.FC = () => {
                         <Card key={reporte._id} className="border-gray-200 hover:shadow-md transition-shadow">
                           <CardContent className="p-3 space-y-2">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm gap-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge className="bg-blue-800 hover:bg-slate-800 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
-                                <p className="text-xs text-gray-500 flex items-center">
-                                  <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
-                                </p>
+                              <div className="flex items-center justify-between w-full sm:w-auto gap-2 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge className="bg-blue-800 hover:bg-slate-800 text-sm">Equipo: {reporte.codigoEquipo}</Badge>
+                                  <p className="text-xs text-gray-500 flex items-center">
+                                    <Calendar className="h-3 w-3 mr-1" /> {new Date(reporte.fecha).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <div className="text-xs text-gray-600 sm:hidden">
+                                  Imágenes: {reporte.imagenesEquipo.length}
+                                </div>
                               </div>
 
-                              <div className="flex items-center gap-2 mt-2 sm:mt-0 flex-wrap">
-                                <div className="text-xs text-gray-600">Imágenes: {reporte.imagenesEquipo.length}</div>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
+                                <div className="hidden sm:block text-xs text-gray-600">
+                                  Imágenes: {reporte.imagenesEquipo.length}
+                                </div>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => setExpandedReports(prev => ({ ...prev, [reporte._id]: !prev[reporte._id] }))}
-                                  className="text-xs"
+                                  className="w-full sm:w-auto text-xs justify-center"
                                 >
                                   {expandedReports[reporte._id] ? (
                                     <>
@@ -393,7 +400,7 @@ export const ListadoReportes: React.FC = () => {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => navigate(`/editar-reportes?codigoEquipo=${encodeURIComponent(reporte.codigoEquipo)}`)}
-                                  className="text-xs"
+                                  className="w-full sm:w-auto text-xs justify-center"
                                 >
                                   <Pencil className="mr-1 h-3 w-3" /> Editar equipo
                                 </Button>
@@ -402,7 +409,7 @@ export const ListadoReportes: React.FC = () => {
                                   variant="outline"
                                   onClick={() => handleDownloadReporte(reporte, bloque)}
                                   disabled={!!downloadStatus[getDownloadKey('reporte', reporte._id)] && downloadStatus[getDownloadKey('reporte', reporte._id)] !== 'idle'}
-                                  className="text-xs mr-0 bg-stone-100 text-stone-900 px-6 py-4 rounded-1/2 hover:bg-stone-900 hover:text-white"
+                                  className="w-full sm:w-auto text-xs mr-0 bg-stone-100 text-stone-900 px-6 py-2.5 sm:py-4 rounded-1/2 hover:bg-stone-900 hover:text-white justify-center"
                                 >
                                   {downloadStatus[getDownloadKey('reporte', reporte._id)] && downloadStatus[getDownloadKey('reporte', reporte._id)] !== 'idle' ? (
                                     <>

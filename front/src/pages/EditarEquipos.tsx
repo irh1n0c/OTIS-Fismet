@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import imageCompression from 'browser-image-compression';
 import { isHeicImage, normalizeImageFile } from '@/lib/utils';
-import {  Trash2 } from "lucide-react";
 import { eliminarEquipo } from "../services/api";
 
 import {
@@ -10,6 +9,25 @@ import {
   buscarEquipoPorCodigo,
   anadirImagenesReporte,
 } from "../services/api";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 import {
   Card,
@@ -39,6 +57,8 @@ import {
   Camera,
   Image as ImageIcon,
   X,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 
 /* ===============================
@@ -258,11 +278,6 @@ export function GestionEquipos() {
     const codigo = codigoEquipo.trim();
     if (!codigo) return;
 
-    const ok = window.confirm(
-      `¿Seguro que quieres eliminar el reporte del equipo con código "${codigo}"?\n\nEsta acción no se puede deshacer.`
-    );
-    if (!ok) return;
-
     setLoading(true);
     setSuccess(null);
     setError(null);
@@ -270,8 +285,17 @@ export function GestionEquipos() {
     try {
       const { bloque, reporte } = await buscarEquipoPorCodigo(codigo);
       await eliminarEquipo(bloque._id, reporte._id);
-      setSuccess("Reporte eliminado correctamente.");
+      setSuccess(`Reporte del equipo "${codigo}" eliminado correctamente.`);
       setCodigoEquipo("");
+      setIsUpdateMode(false);
+      setEquipoData(null);
+      setBloqueData(null);
+      setMetrologo("");
+      setObservaciones("");
+      setImagenes(null);
+      setImagenesPreview([]);
+      setImagenesActuales([]);
+      setImagenesAEliminar([]);
     } catch (err: unknown) {
       const message =
         err && typeof err === "object" && "message" in err
@@ -369,18 +393,18 @@ export function GestionEquipos() {
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-start bg-white">
-      <Card className="w-full max-w-2xl shadow-lg">
-        <CardHeader>
-          <CardTitle>
+    <div className="w-full flex justify-center py-1 sm:py-4">
+      <Card className="w-full max-w-2xl shadow-sm sm:shadow-lg border-slate-200">
+        <CardHeader className="px-3.5 py-4 sm:p-6">
+          <CardTitle className="text-xl sm:text-2xl">
             Editar Equipo
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Busca y edita los datos de un equipo existente
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="pt-6">
+        <CardContent className="px-3 py-4 sm:p-6">
           {/* SECCIÓN DE BÚSQUEDA */}
           <form onSubmit={handleBuscar} className="space-y-4 mb-6 pb-6 border-b">
             <div className="space-y-2">
@@ -555,27 +579,88 @@ export function GestionEquipos() {
 
               <Separator />
 
-              {/* Submit Button */}
-              <Button
-                type="button"
-                className="w-full gap-2"
-                variant="destructive"
-                onClick={handleEliminar}
-                disabled={loading}
-              >
-                <Trash2 className="h-4 w-4" />
-                Eliminar reporte
-              </Button>
+              {/* Botón Guardar y Menú de Acciones */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  type="submit"
+                  className="flex-1 h-10 sm:h-11 text-sm font-medium"
+                  size="lg"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  )}
+                  {loading
+                    ? 'Guardando...'
+                    : imagenesPreview.length > 0
+                      ? 'Guardar Cambios e Imágenes'
+                      : 'Guardar Cambios'
+                  }
+                </Button>
 
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UploadCloud className="mr-2 h-5 w-5" />}
-                {loading ? 'Guardando...' : imagenesPreview.length > 0 ? 'Guardar Cambios e Imágenes' : 'Guardar Cambios'}
-              </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 sm:h-11 px-2.5 sm:px-3 text-slate-600 hover:text-slate-900 shrink-0"
+                      disabled={loading}
+                      aria-label="Abrir acciones del reporte"
+                      title="Más opciones"
+                    >
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent align="end">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          disabled={loading}
+                          onSelect={(event) => event.preventDefault()}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar reporte
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent className="w-[92vw] max-w-md p-4 sm:p-6 rounded-lg sm:rounded-xl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-base sm:text-lg">
+                            ¿Eliminar este reporte?
+                          </AlertDialogTitle>
+
+                          <AlertDialogDescription className="text-xs sm:text-sm">
+                            Esta acción eliminará el reporte seleccionado.
+                            Esta operación podría no ser reversible.
+                            ¿Estás seguro de que deseas continuar?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-3 sm:mt-4">
+                          <AlertDialogCancel disabled={loading} className="w-full sm:w-auto text-xs sm:text-sm">
+                            Cancelar
+                          </AlertDialogCancel>
+
+                          <AlertDialogAction
+                            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-xs sm:text-sm"
+                            disabled={loading}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              handleEliminar();
+                            }}
+                          >
+                            {loading ? "Eliminando..." : "Sí, eliminar reporte"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </form>
           )}
 
@@ -591,20 +676,30 @@ export function GestionEquipos() {
           )}
         </CardContent>
 
-        {(success || error) && isUpdateMode && (
-          <CardFooter>
+        {(success || error) && (
+          <CardFooter className="flex flex-col gap-2 bg-slate-50 border-t px-3 py-3 sm:px-6 sm:py-4 rounded-b-lg">
             {success && (
-              <Alert className="bg-green-50 border-green-500">
-                <CheckCircle2 />
-                <AlertTitle>Éxito</AlertTitle>
-                <AlertDescription>{success}</AlertDescription>
+              <Alert className="border-green-500 bg-green-50 text-green-900 py-2.5 px-3">
+                <CheckCircle2 className="h-4 w-4 !text-green-600 shrink-0" />
+                <div className="ml-2 flex-1">
+                  <AlertTitle className="text-xs sm:text-sm font-semibold">¡Éxito!</AlertTitle>
+                  <AlertDescription className="text-xs">{success}</AlertDescription>
+                </div>
+                <button onClick={() => setSuccess(null)} className="ml-auto text-green-700 hover:text-green-900">
+                  <X className="h-4 w-4" />
+                </button>
               </Alert>
             )}
             {error && (
-              <Alert variant="destructive">
-                <AlertCircle />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant="destructive" className="py-2.5 px-3">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <div className="ml-2 flex-1">
+                  <AlertTitle className="text-xs sm:text-sm font-semibold">Error</AlertTitle>
+                  <AlertDescription className="text-xs">{error}</AlertDescription>
+                </div>
+                <button onClick={() => setError(null)} className="ml-auto">
+                  <X className="h-4 w-4" />
+                </button>
               </Alert>
             )}
           </CardFooter>

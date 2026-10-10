@@ -69,8 +69,8 @@ function AppContent() {
           </nav>
         </header>
 
-        {/* MAIN: ELIMINAMOS max-w-7xl y mx-auto */}
-        <main className="p-4 sm:p-6 lg:p-8">
+        {/* MAIN: Espaciado responsivo optimizado para móviles (sin exceso de margen lateral) */}
+        <main className="px-2 py-3 sm:px-6 sm:py-6 lg:px-8">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><FormularioEnvio /></ProtectedRoute>} />
