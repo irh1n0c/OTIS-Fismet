@@ -9,11 +9,17 @@ const multer = require('multer');
 // 4. CREAMOS UN MANEJADOR DE ERRORES ESPECÍFICO
 function handleUploadErrors(err, req, res, next) {
   if (err instanceof multer.MulterError) {
-    // Un error conocido de Multer (ej: "archivo muy grande")
     console.error("ERROR DE MULTER:", err);
-    return res.status(500).json({ msg: `Error de Multer: ${err.message}` });
+    let msg = `Error de Multer: ${err.message}`;
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      msg = `Se ha superado el límite de imágenes permitidas (máximo 100) o el campo de subida no es válido (${err.field || 'imagenesEquipo'}).`;
+    } else if (err.code === 'LIMIT_FILE_SIZE') {
+      msg = 'Una o más imágenes superan el tamaño máximo permitido.';
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      msg = 'Se enviaron demasiados archivos a la vez.';
+    }
+    return res.status(400).json({ msg });
   } else if (err) {
-    // ¡ESTE ES EL ERROR QUE BUSCAMOS! (Probablemente de Cloudinary)
     console.error("¡ERROR ATRAPADO! (Cloudinary o Desconocido):", err);
     return res.status(500).json({ 
       msg: `Error al subir la imagen: ${err.message}`, 
@@ -25,9 +31,9 @@ function handleUploadErrors(err, req, res, next) {
 }
 router.post(
   '/', 
-  // 5. MODIFICAMOS CÓMO SE LLAMA A 'upload.array'
+  // 5. MODIFICAMOS CÓMO SE LLAMA A 'upload.array' (límite ampliado a 100 imágenes)
   (req, res, next) => {
-    upload.array('imagenesEquipo', 20)(req, res, (err) => {
+    upload.array('imagenesEquipo', 100)(req, res, (err) => {
       handleUploadErrors(err, req, res, next);
     });
   },
@@ -65,7 +71,7 @@ router.patch(
   '/imagenes',
   (req, res, next) => {
     console.log('✓ PATCH /imagenes - Iniciando middleware de multer');
-    upload.array('imagenesEquipo', 20)(req, res, (err) => {
+    upload.array('imagenesEquipo', 100)(req, res, (err) => {
       console.log('✓ Multer completó. req.files:', req.files ? `${req.files.length} archivos` : 'undefined');
       handleUploadErrors(err, req, res, next);
     });
