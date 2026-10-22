@@ -59,6 +59,7 @@ import {
   X,
   Trash2,
   MoreVertical,
+  Eraser,
 } from "lucide-react";
 
 /* ===============================
@@ -475,13 +476,29 @@ export function GestionEquipos() {
               {/* Observaciones */}
               <div className="space-y-2">
                 <Label htmlFor="observaciones">Observaciones</Label>
-                <Textarea
-                  id="observaciones"
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Ingrese observaciones del equipo..."
-                  rows={4}
-                />
+                <div className="flex gap-2 items-stretch">
+                  <Textarea
+                    id="observaciones"
+                    value={observaciones}
+                    onChange={(e) => setObservaciones(e.target.value)}
+                    placeholder="Ingrese observaciones del equipo..."
+                    rows={4}
+                    disabled={loading}
+                    className="flex-1 resize-none text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setObservaciones('')}
+                    disabled={loading || !observaciones}
+                    className="h-auto px-2.5 sm:px-3 text-xs text-slate-600 hover:text-red-600 hover:border-red-200 shrink-0 flex flex-col justify-center items-center gap-1"
+                    title="Limpiar observaciones"
+                    aria-label="Limpiar observaciones"
+                  >
+                    <Eraser className="h-4 w-4" />
+                    <span className="text-[11px] sm:text-xs">Limpiar</span>
+                  </Button>
+                </div>
               </div>
 
               <Separator />

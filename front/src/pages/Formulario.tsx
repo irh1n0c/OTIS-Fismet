@@ -53,7 +53,8 @@ import {
   User,
   Trash2,
   MoreVertical,
-  Search
+  Search,
+  Eraser
 } from "lucide-react";
 
 // --- INTERFACES ---
@@ -693,15 +694,29 @@ export const FormularioEnvio: React.FC = () => {
             {/* Observaciones (completamente editable) */}
             <div className="space-y-1.5 sm:space-y-2">
               <Label htmlFor="observaciones" className="text-xs sm:text-sm font-medium">Observaciones</Label>
-              <Textarea
-                id="observaciones"
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-                placeholder="Ingrese observaciones del equipo, estado, condiciones, etc."
-                rows={3}
-                disabled={loading}
-                className="text-sm resize-none"
-              />
+              <div className="flex gap-2 items-stretch">
+                <Textarea
+                  id="observaciones"
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  placeholder="Ingrese observaciones del equipo, estado, condiciones, etc."
+                  rows={3}
+                  disabled={loading}
+                  className="text-sm resize-none flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setObservaciones('')}
+                  disabled={loading || !observaciones}
+                  className="h-auto px-2.5 sm:px-3 text-xs text-slate-600 hover:text-red-600 hover:border-red-200 shrink-0 flex flex-col justify-center items-center gap-1"
+                  title="Limpiar observaciones"
+                  aria-label="Limpiar observaciones"
+                >
+                  <Eraser className="h-4 w-4" />
+                  <span className="text-[11px] sm:text-xs">Limpiar</span>
+                </Button>
+              </div>
             </div>
 
             <Separator />
